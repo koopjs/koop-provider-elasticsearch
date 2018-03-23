@@ -1,0 +1,25 @@
+{
+  "name": "koop-elasticsearch",
+  "version": "1.0.0",
+  "description": "Elastic Search Provider for Koop",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "koop"
+  ],
+  "author": "Danny Hatcher",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "elasticsearch": "^14.2.0",
+    "koop": "^3.5.2",
+    "moment": "^2.21.0",
+    "proj4": "^2.4.4"
+  },
+  "devDependencies": {
+    "cors": "^2.8.4",
+    "express": "^4.16.3",
+    "koop-output-geoservices": "^1.1.2"
+  }
+}
