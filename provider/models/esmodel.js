@@ -79,7 +79,19 @@ module.exports = function(koop) {
         if(where){
             var boolClause = whereParser.parseWhereClause(where, indexConfig.dateFields);
             if(boolClause){
-                esQuery.body.query = boolClause;
+                if(boolClause.bool ){
+                    if(boolClause.bool.must){
+                        boolClause.must.push( { exists: {field: indexConfig.geometryField} });
+                    } else {
+                        boolClause.must = [
+                            { exists: {field: indexConfig.geometryField} }
+                        ];
+                    }
+                    esQuery.body.query = boolClause;
+                } else {
+                    // simple 1 term where
+                    esQuery.body.query.bool.must.push(boolClause);
+                }
             }
 
         }
