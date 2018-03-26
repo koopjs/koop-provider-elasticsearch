@@ -1,3 +1,7 @@
 .vscode
 node_modules
 dist
+appConfig.json
+cert.pem
+key.pem
+.idea/

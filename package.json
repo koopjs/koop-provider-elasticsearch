@@ -15,7 +15,8 @@
     "elasticsearch": "^14.2.0",
     "koop": "^3.5.2",
     "moment": "^2.21.0",
-    "proj4": "^2.4.4"
+    "proj4": "^2.4.4",
+    "sqlite-parser": "^1.0.1"
   },
   "devDependencies": {
     "cors": "^2.8.4",

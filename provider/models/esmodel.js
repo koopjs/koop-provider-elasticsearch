@@ -4,6 +4,7 @@ const proj = proj4('GOOGLE', 'WGS84');
 const http = require('http');
 const HitConverter = require('../utils/hitConverter');
 const IndexInfo = require('../utils/indexInfo');
+const WhereParser = require('../utils/whereParser');
 
 module.exports = function(koop) {
     this.init = function(esClients, appConfig) {
@@ -25,20 +26,6 @@ module.exports = function(koop) {
         };
 
         var where = req.query.where;
-        // var layerDef = undefined;
-        // if(req.query.layerdefs !== undefined){
-        //     layerDef = JSON.parse(req.query.layerdefs)[0];
-        // }
-        if(undefined !== where && "1=1" === where.replace(/\s+/g, '')) {
-            where = undefined;
-        }
-
-        if(undefined !== where){
-            // console.log(where);
-            where = where.split(' ').pop().replace(new RegExp("'", 'g'), "").replace(new RegExp("%", 'g'), "").replace(/[)]/g, "");
-            // term = layerDef;
-        }
-        // console.log(where);
         var query = req.query;
 
         // console.log(JSON.stringify(esQuery));
@@ -47,6 +34,7 @@ module.exports = function(koop) {
             indexInfo.getMapping(esId, index, indexConfig.mapping).then(mapping => {
 
                 var esQuery = buildESQuery(indexConfig, query, where, mapping);
+                // console.log(JSON.stringify(esQuery, null, 2));
                 this.esClients[esId].search(esQuery).then(function(resp){
                     console.log("Found " + resp.hits.hits.length + " Features");
                     var hitConverter = new HitConverter();
@@ -59,6 +47,7 @@ module.exports = function(koop) {
 
                         callback(null, returnObject);
                     } else {
+                        req.query.where = "";
                         callback(null, featureCollection);
                     }
 
@@ -71,7 +60,7 @@ module.exports = function(koop) {
         }
     };
 
-    function buildESQuery(indexConfig, query, term, mapping) {
+    function buildESQuery(indexConfig, query, where, mapping) {
         var esQuery = {
             index: indexConfig.index,
             body: {
@@ -86,40 +75,28 @@ module.exports = function(koop) {
             }
         };
 
-        if(undefined !== term && "" !== term){
-            // if(isNaN(term)){
-            //     term = "*" + term + "*";
-            // }
-            var fields = indexConfig.returnFields.filter( function(field){
-                return !indexConfig.dateFields.includes(field);
-            });
-
-            // now check the term.  If it is a number, all fields should be fine.  If it is not,
-            // then only non numeric fields should be searched.
-            var isNumericSearch = !isNaN(term);
-            fields = fields.filter(field => {
-                var fieldMapping = mapping.properties[field];
-                var isNumericField = false;
-                if(["long", "integer", "short", "byte", "double", "float", "half_float", "scaled_float"].includes(fieldMapping.type)){
-                    isNumericField = true;
-                }
-                return isNumericField ? isNumericSearch : true;
-            });
-
-            if(fields.length > 0){
-                esQuery.body.query.bool.must.push({
-                    multi_match: {
-                        query: term,
-                        type: "phrase_prefix",
-                        fields: fields
-                    }
-                });
-            } else {
-                esQuery.body.query.bool.must.push({
-                    match_none: {}
-                });
+        var whereParser = new WhereParser();
+        if(where){
+            var boolClause = whereParser.parseWhereClause(where, indexConfig.dateFields);
+            if(boolClause){
+                esQuery.body.query = boolClause;
             }
 
+        }
+        if(esQuery.body.query.bool){
+            if(esQuery.body.query.bool.must){
+                esQuery.body.query.bool.must.push({ exists: {field: indexConfig.geometryField} });
+            } else {
+                esQuery.body.query.bool.must = [{ exists: {field: indexConfig.geometryField} }];
+            }
+        } else {
+            esQuery.body.query = {
+                bool: {
+                    must: [
+                        { exists: {field: indexConfig.geometryField} }
+                    ]
+                }
+            };
         }
 
         if (query.geometry){
