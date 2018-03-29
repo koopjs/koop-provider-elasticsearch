@@ -81,15 +81,14 @@ module.exports = function(koop) {
             if(boolClause){
                 if(boolClause.bool ){
                     if(boolClause.bool.must){
-                        boolClause.must.push( { exists: {field: indexConfig.geometryField} });
+                        boolClause.bool.must.push( { exists: {field: indexConfig.geometryField} });
                     } else {
-                        boolClause.must = [
+                        boolClause.bool.must = [
                             { exists: {field: indexConfig.geometryField} }
                         ];
                     }
                     esQuery.body.query = boolClause;
                 } else {
-                    // simple 1 term where
                     esQuery.body.query.bool.must.push(boolClause);
                 }
             }

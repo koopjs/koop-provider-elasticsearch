@@ -28,12 +28,23 @@ class WhereParser {
             } else if(operation === '<='){
                 returnItem = {range: {}};
                 returnItem.range[leftItem.name] = {lte: rightItem.value};
+            } else if (operation === '<>'){
+                returnItem = {bool:{ must_not: [{term:{}}]}};
+                returnItem.bool.must_not[0].term[leftItem.name] = rightItem.value;
+            } else if (operation === 'is'){
+                if(rightItem.value === 'null'){
+                    returnItem = {bool: {must_not: [{exists: {field: leftItem.name}}] } };
+                }
+            } else if (operation === 'is not'){
+                if(rightItem.value === 'null'){
+                    returnItem = {exists: {field: leftItem.name}};
+                }
             }
             return returnItem;
         } else if(leftItem.type === 'identifier' && rightItem.type === 'expression'){
 
             if(rightItem.right){
-                if(operation === 'between'){
+                if(operation === 'between' || operation === 'not between'){
                     var rangeItem = {
                         range: {
 
@@ -54,7 +65,12 @@ class WhereParser {
                         };
                     }
 
-                    return rangeItem;
+                    if(operation === 'between'){
+                        return rangeItem;
+                    } else {
+                        return {bool: {must_not: [rangeItem]} };
+                    }
+
                 } else {
                     var returnItemLeft = this._processItem(leftItem, rightItem.left, rightItem.operation);
                     var returnItemRight = this._processItem(rightItem.right.left, rightItem.right.right, rightItem.right.operation);
