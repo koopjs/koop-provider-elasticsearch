@@ -43,6 +43,12 @@ The file should have the following format:
 }
 ```
 You can configure multiple indices per cluster as well as multiple clusters.
+### URL
+Your URL should look like this in stand-alone mode:
+```js
+http(s)://yourmachine.com/koop/es/:clusterID/:indexOrAliasName/FeatureServer
+```
+Note: Currently the name you give to the cluster must match the id you give it exactly.So in the example above 'firstESCluster' and 'clusterID' would need to be the same value.
 
 # Using in your own project
 This provider can be used in your own project by pulling in the /provider folder.
