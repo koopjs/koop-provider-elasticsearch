@@ -14,23 +14,14 @@ class HitConverter{
             }
         };
 
-        // generate an objectid
-        var idArrayString = hit._id.split('');
-        var oidString = '';
-        for (var j = 0; j < idArrayString.length; j++){
-            if(isNaN(idArrayString[j])){
-                let idPart = idArrayString[j].toLowerCase().charCodeAt(0) - 96;
-                // ingore non-alphabet characters
-                if(idPart >= 1 && idPart <=26){
-                    oidString += idPart;
-                }
-            } else {
-                oidString += parseInt(idArrayString[j]);
-            }
-        }
-        // Only use the first 15 numbers from the end.  Anything more loses precision
-        feature.properties["OBJECTID"] = parseInt(oidString.substr(oidString.length - 15));
 
+        // It appears that as long as the id doesn't contain only strings we can pass it as a string.
+        // if it does contain only numbers we must parse it.
+        if(isNaN(hit._id)){
+            feature.properties["OBJECTID"] = hit._id;
+        } else {
+            feature.properties["OBJECTID"] = parseInt(hit._id);
+        }
 
         if(feature.geometry.type === "polygon"){
             // Koop expects a capital P and ES has lowercase
