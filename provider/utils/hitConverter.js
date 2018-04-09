@@ -19,12 +19,18 @@ class HitConverter{
         var oidString = '';
         for (var j = 0; j < idArrayString.length; j++){
             if(isNaN(idArrayString[j])){
-                oidString += idArrayString[j].charCodeAt(0);
+                let idPart = idArrayString[j].toLowerCase().charCodeAt(0) - 96;
+                // ingore non-alphabet characters
+                if(idPart >= 1 && idPart <=26){
+                    oidString += idPart;
+                }
             } else {
                 oidString += parseInt(idArrayString[j]);
             }
         }
-        feature.properties["OBJECTID"] = parseInt(oidString);
+        // Only use the first 15 numbers from the end.  Anything more loses precision
+        feature.properties["OBJECTID"] = parseInt(oidString.substr(oidString.length - 15));
+
 
         if(feature.geometry.type === "polygon"){
             // Koop expects a capital P and ES has lowercase
