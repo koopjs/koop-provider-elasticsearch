@@ -39,7 +39,11 @@ class HitConverter{
             // point
             var coords = undefined;
             if(Array.isArray(feature.geometry)){
-                coords = [feature.geometry[0].lon, feature.geometry[0].lat];
+                if(feature.geometry[0].hasOwnProperty('lon')){
+                    coords = [feature.geometry[0].lon, feature.geometry[0].lat];
+                } else {
+                    coords = feature.geometry;
+                }
             } else {
                 coords = feature.geometry.split(",").map(function(coord) {
                     return parseFloat(coord);
