@@ -100,7 +100,7 @@ class WhereParser {
         var shouldArray = [];
         var mustArray = [];
         var mustNotArray = [];
-        whereClause = whereClause.replace(/timestamp/g, '');
+        whereClause = whereClause.replace(/timestamp '/g, " '");
         var ast = sqliteParser("SELECT * FROM BLAH WHERE " + whereClause);
         var whereItem = ast.statement[0].where[0];
         var esClause = this._processItem(whereItem.left, whereItem.right, whereItem.operation);
