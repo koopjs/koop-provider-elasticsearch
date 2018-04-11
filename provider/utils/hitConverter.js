@@ -15,7 +15,7 @@ class HitConverter{
         };
 
 
-        // It appears that as long as the id doesn't contain only strings we can pass it as a string.
+        // It appears that as long as the id doesn't contain only numbers we can pass it as a string.
         // if it does contain only numbers we must parse it.
         if(isNaN(hit._id)){
             feature.properties["OBJECTID"] = hit._id;
@@ -46,18 +46,18 @@ class HitConverter{
             };
 
             // you can take this out if multi point fails...just there to give it a try
-            if(Array.isArray(feature.geometry)){
-                if(feature.geometry.length > 1){
-                    var multiPoints = [];
-                    for(var ptIdx=0; ptIdx<feature.geometry.length; ptIdx++){
-                        multiPoints.push([feature.geometry[ptIdx].lon, feature.geometry[ptIdx].lat]);
-                    }
-                    feature.geometry = {
-                        type: "MultiPoint",
-                        coordinates: multiPoints
-                    };
-                }
-            }
+            // if(Array.isArray(feature.geometry)){
+            //     if(feature.geometry.length > 1){
+            //         var multiPoints = [];
+            //         for(var ptIdx=0; ptIdx<feature.geometry.length; ptIdx++){
+            //             multiPoints.push([feature.geometry[ptIdx].lon, feature.geometry[ptIdx].lat]);
+            //         }
+            //         feature.geometry = {
+            //             type: "MultiPoint",
+            //             coordinates: multiPoints
+            //         };
+            //     }
+            // }
         } else if ("MultiLineString" === feature.geometry.type){
             feature.geometry.type = "LineString";
             feature.geometry.coordinates = feature.geometry.coordinates[0];
@@ -76,7 +76,7 @@ class HitConverter{
                                 feature.properties[field] = moment(hit._source[field]).toDate().toISOString();
                             }
                         } catch (error){
-                            console.trace("couldn't auto parse date");
+                            console.trace("couldn't auto parse date: " + hit._source[field]);
                             // feature.properties[field] = null;
                         }
                     } else {
@@ -85,7 +85,7 @@ class HitConverter{
                                 feature.properties[field] = moment(hit._source[field], mapping.properties[field].format).toDate().toISOString();
                             }
                         } catch (error){
-                            console.trace("couldn't parse date");
+                            console.trace("couldn't parse date: " + hit._source[field]);
                             // feature.properties[field] = null;
                         }
 
@@ -94,11 +94,8 @@ class HitConverter{
 
             });
         }
-
-
         return feature;
     }
-
 }
 
 module.exports = HitConverter;

@@ -33,7 +33,7 @@ module.exports = function(koop) {
             var indexInfo = new IndexInfo(this.esClients);
             indexInfo.getMapping(esId, index, indexConfig.mapping).then(mapping => {
 
-                var esQuery = buildESQuery(indexConfig, query, where, mapping);
+                var esQuery = buildESQuery(indexConfig, query, where);
                 // console.log(JSON.stringify(esQuery, null, 2));
                 this.esClients[esId].search(esQuery).then(function(resp){
                     console.log("Found " + resp.hits.hits.length + " Features");
@@ -50,8 +50,6 @@ module.exports = function(koop) {
                         req.query.where = "";
                         callback(null, featureCollection);
                     }
-
-
                 }, function (err) {
                     console.trace(err.message);
                     callback(err, featureCollection);
@@ -60,7 +58,7 @@ module.exports = function(koop) {
         }
     };
 
-    function buildESQuery(indexConfig, query, where, mapping) {
+    function buildESQuery(indexConfig, query, where) {
         var esQuery = {
             index: indexConfig.index,
             body: {
@@ -94,21 +92,21 @@ module.exports = function(koop) {
             }
 
         }
-        if(esQuery.body.query.bool){
-            if(esQuery.body.query.bool.must){
-                esQuery.body.query.bool.must.push({ exists: {field: indexConfig.geometryField} });
-            } else {
-                esQuery.body.query.bool.must = [{ exists: {field: indexConfig.geometryField} }];
-            }
-        } else {
-            esQuery.body.query = {
-                bool: {
-                    must: [
-                        { exists: {field: indexConfig.geometryField} }
-                    ]
-                }
-            };
-        }
+        // if(esQuery.body.query.bool){
+        //     if(esQuery.body.query.bool.must){
+        //         esQuery.body.query.bool.must.push({ exists: {field: indexConfig.geometryField} });
+        //     } else {
+        //         esQuery.body.query.bool.must = [{ exists: {field: indexConfig.geometryField} }];
+        //     }
+        // } else {
+        //     esQuery.body.query = {
+        //         bool: {
+        //             must: [
+        //                 { exists: {field: indexConfig.geometryField} }
+        //             ]
+        //         }
+        //     };
+        // }
 
         if (query.geometry){
             var bbox = JSON.parse(query.geometry);

@@ -18,16 +18,44 @@ class WhereParser {
                 returnItem.prefix[leftItem.name] = rightItem.value.replace(/%/g, '');
             } else if(operation === '>'){
                 returnItem = {range: {}};
-                returnItem.range[leftItem.name] = {gt: rightItem.value};
+                if(!this.dateFields.includes(leftItem.name)){
+                    returnItem.range[leftItem.name] = {gt: rightItem.value};
+                } else {
+                    let moVal = moment(rightItem.value);
+                    returnItem.range[leftItem.name] = {
+                        gt: moVal.valueOf()
+                    };
+                }
             } else if(operation === '<'){
                 returnItem = {range: {}};
-                returnItem.range[leftItem.name] = {lt: rightItem.value};
+                if(!this.dateFields.includes(leftItem.name)){
+                    returnItem.range[leftItem.name] = {lt: rightItem.value};
+                } else {
+                    let moVal = moment(rightItem.value);
+                    returnItem.range[leftItem.name] = {
+                        lt: moVal.valueOf()
+                    };
+                }
             } else if(operation === '>='){
                 returnItem = {range: {}};
-                returnItem.range[leftItem.name] = {gte: rightItem.value};
+                if(!this.dateFields.includes(leftItem.name)){
+                    returnItem.range[leftItem.name] = {gte: rightItem.value};
+                } else {
+                    let moVal = moment(rightItem.value);
+                    returnItem.range[leftItem.name] = {
+                        gte: moVal.valueOf()
+                    };
+                }
             } else if(operation === '<='){
                 returnItem = {range: {}};
-                returnItem.range[leftItem.name] = {lte: rightItem.value};
+                if(!this.dateFields.includes(leftItem.name)){
+                    returnItem.range[leftItem.name] = {lte: rightItem.value};
+                } else {
+                    let moVal = moment(rightItem.value);
+                    returnItem.range[leftItem.name] = {
+                        lte: moVal.valueOf()
+                    };
+                }
             } else if (operation === '<>'){
                 returnItem = {bool:{ must_not: [{term:{}}]}};
                 returnItem.bool.must_not[0].term[leftItem.name] = rightItem.value;
