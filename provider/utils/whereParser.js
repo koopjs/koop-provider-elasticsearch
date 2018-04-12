@@ -6,12 +6,17 @@ class WhereParser {
     }
 
 
-    _trueFieldName(lowercaseFieldName){
+    _trueFieldName(lowercaseFieldName, includePropertyExtension=false){
         var returnFieldName = lowercaseFieldName;
 
         for(var i=0; i< this.returnFields.length; i++){
-            if(this.returnFields[i].split('.')[0].toLowerCase() === lowercaseFieldName){
-                returnFieldName = this.returnFields[i];
+            let rootFieldName = this.returnFields[i].split('.')[0];
+            if(rootFieldName.toLowerCase() === lowercaseFieldName){
+                if(includePropertyExtension){
+                    returnFieldName = this.returnFields[i];
+                } else {
+                    returnFieldName = rootFieldName;
+                }
                 break;
             }
         }
@@ -23,7 +28,7 @@ class WhereParser {
         if(leftItem.type === 'identifier' && rightItem.type === 'literal'){
             if(operation === '='){
                 returnItem.term = {};
-                returnItem.term[this._trueFieldName(leftItem.name)] = rightItem.value;
+                returnItem.term[this._trueFieldName(leftItem.name, true)] = rightItem.value;
             } else if(operation === 'not like'){
                 returnItem = {bool:{ must_not: [{match_phrase_prefix:{}}]}};
                 returnItem.bool.must_not[0].match_phrase_prefix[this._trueFieldName(leftItem.name)] = rightItem.value.replace(/%/g, '');
@@ -71,8 +76,8 @@ class WhereParser {
                     };
                 }
             } else if (operation === '<>'){
-                returnItem = {bool:{ must_not: [{match_phrase:{}}]}};
-                returnItem.bool.must_not[0].match_phrase[this._trueFieldName(leftItem.name)] = rightItem.value;
+                returnItem = {bool:{ must_not: [{term:{}}]}};
+                returnItem.bool.must_not[0].term[this._trueFieldName(leftItem.name, true)] = rightItem.value;
             } else if (operation === 'is'){
                 if(rightItem.value === 'null'){
                     returnItem = {bool: {must_not: [{exists: {field: this._trueFieldName(leftItem.name)}}] } };
