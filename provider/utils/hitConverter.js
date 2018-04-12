@@ -64,7 +64,7 @@ class HitConverter{
         }
 
         for(var i=0; i<indexConfig.returnFields.length; i++){
-            feature.properties[indexConfig.returnFields[i]] = hit._source[indexConfig.returnFields[i]];
+            feature.properties[indexConfig.returnFields[i].split('.')[0]] = hit._source[indexConfig.returnFields[i].split('.')[0]];
         }
 
         if(indexConfig.dateFields.length > 0 && undefined !== mapping){

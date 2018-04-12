@@ -10,7 +10,7 @@ class WhereParser {
         var returnFieldName = lowercaseFieldName;
 
         for(var i=0; i< this.returnFields.length; i++){
-            if(this.returnFields[i].toLowerCase() === lowercaseFieldName){
+            if(this.returnFields[i].split('.')[0].toLowerCase() === lowercaseFieldName){
                 returnFieldName = this.returnFields[i];
                 break;
             }
@@ -71,8 +71,8 @@ class WhereParser {
                     };
                 }
             } else if (operation === '<>'){
-                returnItem = {bool:{ must_not: [{term:{}}]}};
-                returnItem.bool.must_not[0].term[this._trueFieldName(leftItem.name)] = rightItem.value;
+                returnItem = {bool:{ must_not: [{match_phrase:{}}]}};
+                returnItem.bool.must_not[0].match_phrase[this._trueFieldName(leftItem.name)] = rightItem.value;
             } else if (operation === 'is'){
                 if(rightItem.value === 'null'){
                     returnItem = {bool: {must_not: [{exists: {field: this._trueFieldName(leftItem.name)}}] } };
