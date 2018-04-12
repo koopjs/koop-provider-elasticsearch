@@ -75,7 +75,7 @@ module.exports = function(koop) {
 
         var whereParser = new WhereParser();
         if(where){
-            var boolClause = whereParser.parseWhereClause(where, indexConfig.dateFields);
+            var boolClause = whereParser.parseWhereClause(where, indexConfig.dateFields, indexConfig.returnFields);
             if(boolClause){
                 if(boolClause.bool ){
                     if(boolClause.bool.must){
@@ -92,21 +92,6 @@ module.exports = function(koop) {
             }
 
         }
-        // if(esQuery.body.query.bool){
-        //     if(esQuery.body.query.bool.must){
-        //         esQuery.body.query.bool.must.push({ exists: {field: indexConfig.geometryField} });
-        //     } else {
-        //         esQuery.body.query.bool.must = [{ exists: {field: indexConfig.geometryField} }];
-        //     }
-        // } else {
-        //     esQuery.body.query = {
-        //         bool: {
-        //             must: [
-        //                 { exists: {field: indexConfig.geometryField} }
-        //             ]
-        //         }
-        //     };
-        // }
 
         if (query.geometry){
             var bbox = JSON.parse(query.geometry);

@@ -6,66 +6,80 @@ class WhereParser {
     }
 
 
+    _trueFieldName(lowercaseFieldName){
+        var returnFieldName = lowercaseFieldName;
+
+        for(var i=0; i< this.returnFields.length; i++){
+            if(this.returnFields[i].toLowerCase() === lowercaseFieldName){
+                returnFieldName = this.returnFields[i];
+                break;
+            }
+        }
+        return returnFieldName;
+    }
 
     _processItem(leftItem, rightItem, operation){
         var returnItem = {};
         if(leftItem.type === 'identifier' && rightItem.type === 'literal'){
             if(operation === '='){
                 returnItem.term = {};
-                returnItem.term[leftItem.name] = rightItem.value;
+                returnItem.term[this._trueFieldName(leftItem.name)] = rightItem.value;
+            } else if(operation === 'not like'){
+                returnItem = {bool:{ must_not: [{match_phrase_prefix:{}}]}};
+                returnItem.bool.must_not[0].match_phrase_prefix[this._trueFieldName(leftItem.name)] = rightItem.value.replace(/%/g, '');
             } else if(operation === 'like'){
-                returnItem.prefix = {};
-                returnItem.prefix[leftItem.name] = rightItem.value.replace(/%/g, '');
+                returnItem.match_phrase_prefix = {};
+                returnItem.match_phrase_prefix[this._trueFieldName(leftItem.name)] = rightItem.value.replace(/%/g, '');
             } else if(operation === '>'){
                 returnItem = {range: {}};
-                if(!this.dateFields.includes(leftItem.name)){
-                    returnItem.range[leftItem.name] = {gt: rightItem.value};
+                if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {gt: rightItem.value};
                 } else {
                     let moVal = moment(rightItem.value);
-                    returnItem.range[leftItem.name] = {
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {
                         gt: moVal.valueOf()
                     };
                 }
             } else if(operation === '<'){
                 returnItem = {range: {}};
-                if(!this.dateFields.includes(leftItem.name)){
-                    returnItem.range[leftItem.name] = {lt: rightItem.value};
+                if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {lt: rightItem.value};
                 } else {
                     let moVal = moment(rightItem.value);
-                    returnItem.range[leftItem.name] = {
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {
                         lt: moVal.valueOf()
                     };
                 }
             } else if(operation === '>='){
                 returnItem = {range: {}};
-                if(!this.dateFields.includes(leftItem.name)){
-                    returnItem.range[leftItem.name] = {gte: rightItem.value};
+                if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {gte: rightItem.value};
                 } else {
                     let moVal = moment(rightItem.value);
-                    returnItem.range[leftItem.name] = {
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {
                         gte: moVal.valueOf()
                     };
                 }
             } else if(operation === '<='){
                 returnItem = {range: {}};
-                if(!this.dateFields.includes(leftItem.name)){
-                    returnItem.range[leftItem.name] = {lte: rightItem.value};
+                if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {lte: rightItem.value};
                 } else {
                     let moVal = moment(rightItem.value);
-                    returnItem.range[leftItem.name] = {
+                    returnItem.range[this._trueFieldName(leftItem.name)] = {
                         lte: moVal.valueOf()
                     };
                 }
             } else if (operation === '<>'){
                 returnItem = {bool:{ must_not: [{term:{}}]}};
-                returnItem.bool.must_not[0].term[leftItem.name] = rightItem.value;
+                returnItem.bool.must_not[0].term[this._trueFieldName(leftItem.name)] = rightItem.value;
             } else if (operation === 'is'){
                 if(rightItem.value === 'null'){
-                    returnItem = {bool: {must_not: [{exists: {field: leftItem.name}}] } };
+                    returnItem = {bool: {must_not: [{exists: {field: this._trueFieldName(leftItem.name)}}] } };
                 }
             } else if (operation === 'is not'){
                 if(rightItem.value === 'null'){
-                    returnItem = {exists: {field: leftItem.name}};
+                    returnItem = {exists: {field: this._trueFieldName(leftItem.name)}};
                 }
             }
             return returnItem;
@@ -78,8 +92,8 @@ class WhereParser {
 
                         }
                     };
-                    if(!this.dateFields.includes(leftItem.name)){
-                        rangeItem.range[leftItem.name] = {
+                    if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                        rangeItem.range[this._trueFieldName(leftItem.name)] = {
                             gte: rightItem.left.value,
                             lte: rightItem.right.value
                         };
@@ -87,7 +101,7 @@ class WhereParser {
                         // we're assuming moment will be able to parse this format
                         var moleft = moment(rightItem.left.value);
                         var moRight = moment(rightItem.right.value);
-                        rangeItem.range[leftItem.name] = {
+                        rangeItem.range[this._trueFieldName(leftItem.name)] = {
                             gte: moleft.valueOf(),
                             lte: moRight.valueOf()
                         };
@@ -123,8 +137,9 @@ class WhereParser {
         }
     }
 
-    parseWhereClause(whereClause, dateFields){
+    parseWhereClause(whereClause, dateFields, returnFields){
         this.dateFields = dateFields;
+        this.returnFields = returnFields;
         var shouldArray = [];
         var mustArray = [];
         var mustNotArray = [];
