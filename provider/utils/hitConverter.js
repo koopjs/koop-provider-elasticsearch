@@ -70,28 +70,25 @@ class HitConverter{
         if(indexConfig.dateFields.length > 0 && undefined !== mapping){
             indexConfig.dateFields.forEach(field => {
                 if(mapping.properties[field] !== undefined && mapping.properties[field].type === "date"){
-                    if(mapping.properties[field].format === undefined){
-                        try {
-                            if(null !==feature.properties[field]) {
-                                feature.properties[field] = moment(hit._source[field]).toDate().toISOString();
-                            }
-                        } catch (error){
-                            console.trace("couldn't auto parse date: " + hit._source[field]);
-                            // feature.properties[field] = null;
+                    try {
+                        if(null !== feature.properties[field]) {
+                            feature.properties[field] = moment(hit._source[field]).toDate().toISOString();
                         }
-                    } else {
-                        try{
-                            if(null !==feature.properties[field]) {
-                                feature.properties[field] = moment(hit._source[field], mapping.properties[field].format).toDate().toISOString();
+                    } catch (error){
+                        console.trace("couldn't auto parse date: " + hit._source[field]);
+                        // feature.properties[field] = null;
+                        if(mapping.properties[field].format !== undefined){
+                            try{
+                                if(null !==feature.properties[field]) {
+                                    feature.properties[field] = moment(hit._source[field], mapping.properties[field].format).toDate().toISOString();
+                                }
+                            } catch (error){
+                                console.trace("couldn't parse date: " + hit._source[field]);
+                                // feature.properties[field] = null;
                             }
-                        } catch (error){
-                            console.trace("couldn't parse date: " + hit._source[field]);
-                            // feature.properties[field] = null;
                         }
-
                     }
                 }
-
             });
         }
         return feature;
