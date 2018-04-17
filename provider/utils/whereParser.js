@@ -134,7 +134,9 @@ class WhereParser {
         } else if(leftItem.type === 'expression' && rightItem.type === 'expression'){
             var returnItemLeft = this._processItem(leftItem.left, leftItem.right, leftItem.operation);
             var returnItemRight = this._processItem(rightItem.left, rightItem.right, rightItem.operation);
-            if(operation === 'or'){
+            if(!returnItemLeft && !returnItemRight){
+                return undefined;
+            } else if(operation === 'or'){
                 return {bool:{ should: [returnItemLeft, returnItemRight], minimum_should_match: 1}};
             } else if (operation === 'and'){
                 return {bool:{ must: [returnItemLeft, returnItemRight]}};
