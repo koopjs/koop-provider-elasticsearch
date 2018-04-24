@@ -54,6 +54,9 @@ module.exports = function(koop) {
                     console.error(err);
                     callback(err, featureCollection);
                 });
+            }, function (err) {
+                console.error(err);
+                callback(err, null);
             });
         }
     };
