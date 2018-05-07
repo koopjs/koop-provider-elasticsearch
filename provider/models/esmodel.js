@@ -14,8 +14,8 @@ module.exports = function(koop) {
     this.getData = function(req, callback) {
         var index = req.params.id;
         var esId = req.params.host;
-        var layerId = req.params.layer;
-        var indexConfig = getIndexConfig(index, this.appConfig.esConnections[esId]);
+
+        var indexConfig = this.getIndexConfig(index, this.appConfig.esConnections[esId]);
         const featureCollection = {
             type: 'FeatureCollection',
             features: [],
@@ -25,6 +25,55 @@ module.exports = function(koop) {
             }
         };
 
+        if(indexConfig.timeInfo){
+            featureCollection.metadata.timeInfo = indexConfig.timeInfo;
+            // if time extent is not present in config, we'll need to generate it at some point.
+            if((indexConfig.timeInfo.timeExtent && indexConfig.timeInfo.timeExtent.length === 2) ||
+                (this.startFieldStats !== undefined && this.endFieldStats !== undefined)){
+                if(this.startFieldStats !== undefined && this.endFieldStats !== undefined){
+                    this.setTimeExtent(featureCollection);
+                }
+                this.performQuery(featureCollection, req, callback);
+            } else {
+                // get the time extent from the index
+                var indexInfo = new IndexInfo(this.esClients);
+                indexInfo.getStatistics(esId, index, indexConfig.timeInfo.startTimeField).then(result => {
+                    this.startFieldStats = result;
+                    if(indexConfig.timeInfo.startTimeField !== indexConfig.timeInfo.endTimeField){
+                        indexInfo.getStatistics(esId, index, indexConfig.timeInfo.endTimeField).then(endResult => {
+                            this.endFieldStats = endResult;
+                            this.setTimeExtent(featureCollection);
+                            this.performQuery(featureCollection, req, callback);
+                        }, error => {
+                            console.error(error);
+                            callback(error, featureCollection);
+                        });
+                    } else {
+                        this.endFieldStats = result;
+                        this.setTimeExtent(featureCollection);
+                        this.performQuery(featureCollection, req, callback);
+                    }
+                }, error => {
+                    console.error(error);
+                    callback(error, featureCollection);
+                });
+            }
+        } else {
+            this.performQuery(featureCollection, req, callback);
+        }
+
+    };
+
+    this.setTimeExtent = function (featureCollection){
+        featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
+    };
+
+    this.performQuery = function(featureCollection, req, callback){
+        var index = req.params.id;
+        var esId = req.params.host;
+        var layerId = req.params.layer;
+        var indexConfig = this.getIndexConfig(index, this.appConfig.esConnections[esId]);
+
         var where = req.query.where;
         var query = req.query;
 
@@ -33,7 +82,7 @@ module.exports = function(koop) {
             var indexInfo = new IndexInfo(this.esClients);
             indexInfo.getMapping(esId, index, indexConfig.mapping).then(mapping => {
 
-                var esQuery = buildESQuery(indexConfig, query, where);
+                var esQuery = this.buildESQuery(indexConfig, query, where);
                 // console.log(JSON.stringify(esQuery, null, 2));
                 this.esClients[esId].search(esQuery).then(function(resp){
                     console.log("Found " + resp.hits.hits.length + " Features");
@@ -61,7 +110,7 @@ module.exports = function(koop) {
         }
     };
 
-    function buildESQuery(indexConfig, query, where) {
+    this.buildESQuery = function(indexConfig, query, where) {
         var esQuery = {
             index: indexConfig.index,
             body: {
@@ -94,6 +143,32 @@ module.exports = function(koop) {
                 }
             }
 
+        }
+
+        if (query.time && indexConfig.timeInfo){
+            var timeVals = query.time.split(',');
+            if (timeVals.length === 2){
+                var startTimeRange = {
+                    range: {
+
+                    }
+                };
+                startTimeRange.range[indexConfig.timeInfo.startTimeField] = {
+                    gte: timeVals[0]
+                };
+
+                var endTimeRange = {
+                    range: {
+
+                    }
+                };
+                endTimeRange.range[indexConfig.timeInfo.endTimeField] = {
+                    lte: timeVals[1]
+                };
+
+                esQuery.body.query.bool.must.push(startTimeRange);
+                esQuery.body.query.bool.must.push(endTimeRange);
+            }
         }
 
         if (query.geometry){
@@ -153,12 +228,12 @@ module.exports = function(koop) {
         return esQuery;
     }
 
-    function getIndexConfig(indexName, esConfig) {
+    this.getIndexConfig = function(indexName, esConfig) {
         for(var i=0; i<esConfig.indices.length; i++){
             if(esConfig.indices[i].index === indexName){
                 return esConfig.indices[i];
             }
         }
         return null;
-    }
+    };
 };

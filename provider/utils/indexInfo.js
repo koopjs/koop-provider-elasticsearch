@@ -19,7 +19,28 @@ class IndexInfo{
                 }
 
             }, error => {
-                console.error(error);
+                reject(error);
+            });
+        });
+    }
+
+    getStatistics(esName, indexName, fieldName){
+        return new Promise((resolve, reject) => {
+            var esClient = this.esClients[esName];
+            var statsQuery = {
+                index: indexName,
+                body: {
+                    size: 0,
+                    aggs: {
+                        fieldstats: {
+                            stats: { field: fieldName }
+                        }
+                    }
+                }
+            };
+            esClient.search(statsQuery).then(result => {
+                resolve(result.aggregations.fieldstats);
+            }, error => {
                 reject(error);
             });
         });
