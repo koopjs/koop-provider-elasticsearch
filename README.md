@@ -35,13 +35,21 @@ The file should have the following format:
           ],
           "dateFields": [
             "pickup_date", "SomeDateField"
-          ]
+          ],
+          "timeInfo": {
+            "startTimeField": "start_date",
+            "endTimeField": "end_date",
+            "timeExtent": [1438401615000, 1439833466000],
+            "timeInterval": 1,
+            "timeIntervalUnits": "esriTimeUnitsDays"
+          }
         }
       ]
     }
   }
 }
 ```
+##### Note: timeInfo is optional and only required if you wish to time enable a layer.  If you do not know the time extent for the field(s) you are using you may leave the timeExtent out of the config and the provider will set it for you based on the Elastic Index.  A complete listing of valid timeIntervalUnits is contained within timeConstants.js
 You can configure multiple indices per cluster as well as multiple clusters.
 ### URL
 Your URL should look like this in stand-alone mode:
