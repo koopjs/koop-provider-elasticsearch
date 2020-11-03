@@ -1,6 +1,6 @@
 {
-  "name": "koop-elasticsearch",
-  "version": "1.0.0",
+  "name": "@koopjs/provider-elasticsearch",
+  "version": "2.0.0",
   "description": "Elastic Search Provider for Koop",
   "main": "src/index.js",
   "scripts": {
@@ -22,6 +22,10 @@
     "ngeohash": "^0.6.3",
     "proj4": "2.4.4",
     "sqlite-parser": "1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koopjs/koop-provider-elasticsearch.git"
   },
   "devDependencies": {
     "@koopjs/cli": "^0.6.0"
