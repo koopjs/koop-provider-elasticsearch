@@ -1,10 +1,11 @@
 {
   "name": "koop-elasticsearch",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Elastic Search Provider for Koop",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "koop serve --port 80",
+    "test": "standard && tape test/*.js | tap-spec"
   },
   "keywords": [
     "koop"
@@ -12,15 +13,17 @@
   "author": "Danny Hatcher",
   "license": "Apache-2.0",
   "dependencies": {
-    "elasticsearch": "^14.2.0",
-    "koop": "^3.5.2",
-    "moment": "^2.21.0",
-    "proj4": "^2.4.4",
-    "sqlite-parser": "^1.0.1"
+    "@koopjs/logger": "^2.0.6",
+    "@mapbox/geojson-rewind": "^0.5.0",
+    "elasticsearch": "14.0.0",
+    "flat": "^5.0.0",
+    "koop": "^4.0.4",
+    "moment": "2.20.1",
+    "ngeohash": "^0.6.3",
+    "proj4": "2.4.4",
+    "sqlite-parser": "1.0.1"
   },
   "devDependencies": {
-    "cors": "^2.8.4",
-    "express": "^4.16.3",
-    "koop-output-geoservices": "^1.1.2"
+    "@koopjs/cli": "^0.6.0"
   }
 }

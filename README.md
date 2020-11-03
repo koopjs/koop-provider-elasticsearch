@@ -1,64 +1,159 @@
-# ElasticSearch Provider
-This provider is designed to connect to one or more ElasticSearch clusters and provide them as feature layers to Koop.
+# es-provider
+Koop Provider for Elastic Search
 
-# Stand Alone
-This project may be run in stand alone by running index.js.  It will require the addition of an appConfig.json file and optionally a cert.pem and key.pem file (for HTTPS).
-```bash
-npm install 
-node index.js
-```
+# Install
+From command line in the folder containing the project run:
 
-## appConfig.json
-The file should have the following format:
+`npm install`
+
+# Running
+To suppress KoopJS warnings from the console output, run with an environment variable of KOOP_WARNINGS="suppress". In powershell, this will look like: $env:KOOP_WARNINGS="suppress" ; node main.js
+
+## Command Line
+`npm start`
+
+### Geohash aggregation
+If you use an ElasticSearch Index with a geo_point shape field you can enable geo hash aggregation.  This will show up 
+as a separate sub-layer in the feature service.
+
+#### Basic Config File Structure
+The following is a sample configuration file showing most capabilities
 ```json
 {
-  "appInfo": {
-    "protocol": "http",
-    "listenPort": 80
-  },
   "esConnections": {
-    "firstESCluster": {
-      "id": "clusterID",
+    "esNameForServiceURLs": {
+      "id": "esNameForServiceURLs",
       "protocol": "http://",
       "port": 9200,
       "hosts": [
-        "escluster.mynetwork.com"
+        "localhost"
       ],
-      "indices": [
-        {
-          "index": "indexOrAliasName",
-          "maxResults": 6000,
+      "shapeIndices": {
+        "states": {
           "geometryField": "geometry",
-          "geometryType": "geo_point/Point/Polyline/Polygon",
+          "geometryType": "Polygon",
+          "joinField": "NAME"
+        }
+      },
+      "indices": {
+        "myService1": {
+          "index": "indexName",
+          "allowMultiPoint": false,
+          "geometryField": "geometry.coordinates",
+          "geometryType": "geo_point",
           "returnFields": [
-            "fieldFromIndex", "SeenInFeatureService", "SomeDateField"
+            "lastUpdate",
+            "createdAt",
+            "name"
           ],
           "dateFields": [
-            "pickup_date", "SomeDateField"
+            "lastUpdate",
+            "createdAt"
           ],
-          "timeInfo": {
-            "startTimeField": "start_date",
-            "endTimeField": "end_date",
-            "timeExtent": [1438401615000, 1439833466000],
-            "timeInterval": 1,
-            "timeIntervalUnits": "esriTimeUnitsDays"
-          }
+          "idField": "OBJECTID",
+          "aggregations": [
+            "geohash"
+          ],
+          "maxResults": 1000
+        },
+        "tableService": {
+          "index": "indexNoShape",
+          "allowMultiPoint": false,
+          "isTable": true,
+          "returnFields": [
+            "state",
+            "county",
+            "date"
+          ],
+          "dateFields": [
+            "date"
+          ],
+          "maxResults": 1000
+        },
+        "joinService": {
+          "index": "indexToJoin",
+          "allowMultiPoint": false,
+          "returnFields": [
+            "date",
+            "country",
+            "state.name"
+          ],
+          "dateFields": [
+            "date"
+          ],
+          "aggregations": [],
+          "shapeIndex": {
+            "name": "states",
+            "joinField": "state.name"
+          },
+          "maxResults": 1000
+        },
+        "polyService": {
+          "index": "polygonIndex",
+          "allowMultiPoint": false,
+          "geometryField": "geometry",
+          "geometryType": "MultiPolygon",
+          "reversePolygons": true,
+          "returnFields": [
+            "properties.date",
+            "properties.count",
+            "properties.state_name"
+          ],
+          "dateFields": [
+            "properties.date"
+          ],
+          "aggregations": [],
+          "maxResults": 1000
         }
-      ]
+      }
     }
   }
 }
 ```
-##### Note: timeInfo is optional and only required if you wish to time enable a layer.  If you do not know the time extent for the field(s) you are using you may leave the timeExtent out of the config and the provider will set it for you based on the Elastic Index.  A complete listing of valid timeIntervalUnits is contained within timeConstants.js
-You can configure multiple indices per cluster as well as multiple clusters.
-### URL
-Your URL should look like this in stand-alone mode:
-```js
-http(s)://yourmachine.com/koop/es/:clusterID/:indexOrAliasName/FeatureServer
+
+##### Configuration Options
+* `shapeIndices` includes all indices that will be used for their shapes on other services. All fields are mandatory.
+* `indices` this object has a property for every service to be created.  The name of the property will be the service 
+name.
+
+_Index Properties_
+* `index` is the name of the ElasticSearch index
+* `isTable` treat this service as a table, ignoring geometry
+* `allowMultiPoint` is only important for point services and allows more than one point per feature
+* `geometryField` is the full location of the geometry
+* `geometryType` can be geo_point, Point, MultiPoint, Polyline, MultiLineString, Polygon and MultiPolygon
+* `reversePolygons` if the stored polygons do not follow the right-hand rule setting this to true will fix this. 
+Polygons that do not follow the right-hand rule will not be displayed as feature services without setting this to true.
+* `returnFields` includes all fields that will be returned by the feature service
+* `dateFields` includes any return fields that should be treated as dates
+* `idField` if the index includes a field that can be treated as the OBJECTID field, this should be set
+* `aggregations` any aggregations to use as sub-layers.  Currently only `geohash` is valid and only for `geo_point` indices.
+* `maxResults` the maximum features returned from a single request
+* `shapeIndex` if the service will join to a shapeIndex for geometry list the name of the index (defined in 
+`shapeIndices`) and the joinField from this index.
+
+#### Additional Index Configurations
+`mapReturnValues` is an object that can contain keys that are field names that in turn have their own keys equal to field 
+values mapped to object values. Example below. `__defaultmapping` is not required.
+
+``` js
+{
+    "mapReturnValues": {
+        "fieldName": {
+            "returnedValue1": "mappedValue",
+            "__defaultmapping": "defaultValue"
+        }
+    }
+}
 ```
-Note: Currently the name you give to the cluster must match the id you give it exactly.So in the example above 'firstESCluster' and 'clusterID' would need to be the same value.
 
-# Using in your own project
-This provider can be used in your own project by pulling in the /provider folder.
+*IN DEVELOPMENT*
 
-You will need to provide a dictionary of elasticsearch clients and an application config object similar to the one shown above.
+`mapFieldNames` can be used to specify a different return field than what is specified within returnFields
+```` json
+{
+    "mapFieldNames": {
+        "fieldName": "mappedFieldName"
+    }
+}
+````

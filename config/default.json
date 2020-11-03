@@ -1,0 +1,104 @@
+{
+  "koopOutputVectorTiles": {
+    "cache": false
+  },
+  "logfile": "./logs/logfile.txt",
+  "esConnections": {
+    "local": {
+      "id": "local",
+      "protocol": "http://",
+      "port": 9200,
+      "hosts": [
+        "localhost"
+      ],
+      "shapeIndices": {
+        "tncounties": {
+          "geometryField": "geometry",
+          "geometryType": "polygon",
+          "joinField": "properties.GEO_ID.keyword",
+          "maxResults": 10000
+        }
+      },
+      "indices": {
+        "surveyjob": {
+          "index": "surveyjob",
+          "idField": "OBJECTID",
+          "allowMultiPoint": false,
+          "geometryField": "geometry",
+          "geometryType": "MultiPolygon",
+          "reversePolygons": true,
+          "returnFields": [
+            "OBJECTID",
+            "SURVEYJOBIDPK",
+            "SDSFEATURENAME",
+            "SURVEYDATESTART",
+            "SURVEYDATEEND",
+            "SOURCEDATALOCATION"
+          ],
+          "dateFields": [
+            "SURVEYDATESTART",
+            "SURVEYDATEEND"
+          ],
+          "aggregations": [],
+          "maxResults": 1000,
+          "searchFields": ["SDSFEATURENAME"]
+        },
+        "mobility": {
+          "index": "mobility",
+          "allowMultiPoint": false,
+          "isTable": false,
+          "returnFields": [
+            "timestampOfAdded",
+            "mobility_index",
+            "Mobility_Reduction",
+            "fips.State.name",
+            "fips.County.name",
+            "fips.County.fips"
+          ],
+          "dateFields": [
+            "timestampOfAdded"
+          ],
+          "aggregations": [],
+          "shapeIndex": {
+            "name": "tncounties",
+            "joinField": "fips.County.fips.keyword"
+          },
+          "maxResults": 1000
+        },
+        "counties": {
+          "index": "tncounties",
+          "isTable": false,
+          "geometryField": "geometry",
+          "geometryType": "polygon",
+          "returnFields": [
+            "CENSUSAREA",
+            "GEO_ID",
+            "LSAD",
+            "NAME",
+            "STATE"
+          ],
+          "dateFields": [],
+          "maxResults": 1000
+        },
+        "broadcast": {
+          "index": "broadcast",
+          "isTable": false,
+          "geometryField": "shape",
+          "geometryType": "geo_point",
+          "returnFields": [
+            "BaseDateTime",
+            "Status",
+            "ReceiverID",
+            "Heading",
+            "VoyageID"
+          ],
+          "dateFields": ["BaseDateTime"],
+          "aggregations": [
+            "geohash"
+          ],
+          "maxResults": 100000
+        }
+      }
+    }
+  }
+}
