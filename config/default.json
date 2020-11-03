@@ -1,8 +1,4 @@
 {
-  "koopOutputVectorTiles": {
-    "cache": false
-  },
-  "logfile": "./logs/logfile.txt",
   "esConnections": {
     "local": {
       "id": "local",
