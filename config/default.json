@@ -1,0 +1,16 @@
+{
+  "esConnections": {
+    "local": {
+      "id": "local",
+      "protocol": "http://",
+      "port": 9200,
+      "hosts": [
+        "localhost"
+      ],
+      "shapeIndices": {
+      },
+      "indices": {
+      }
+    }
+  }
+}
