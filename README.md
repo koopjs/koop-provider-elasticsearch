@@ -1,10 +1,20 @@
-# es-provider
-Koop Provider for Elastic Search
+# Koop Provider for Elastic Search
+This provider allow Koop to fetch and transform data from an Elasticsearch instance.
 
 # Install
+
 From command line in the folder containing the project run:
 
-`npm install`
+`npm install @koopjs/provider-elasticsearch --save`
+
+In your Koop instance, register the provider like:
+
+```js
+  const esProvider = require('@koopjs/provider-elasticsearch')
+  koop.register(esProvider)
+```
+
+The latest version of this provider can be installed with the Koop CLI.  See the [Koop CLI docs](https://github.com/koopjs/koop-cli) for details on setting up a Koop instance and add providers with the CLI.
 
 # Running
 To suppress KoopJS warnings from the console output, run with an environment variable of KOOP_WARNINGS="suppress". In powershell, this will look like: $env:KOOP_WARNINGS="suppress" ; node main.js
