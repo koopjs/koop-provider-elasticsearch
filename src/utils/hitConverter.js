@@ -171,8 +171,8 @@ class HitConverter{
             }
         }
 
-        const flatMapping = flatten(mapping);
         if(indexConfig.dateFields.length > 0 && undefined !== mapping){
+            const flatMapping = flatten(mapping);
             indexConfig.dateFields.forEach(field => {
                 let flatField = field.split('.').join('.properties.');
                 if(flatMapping[`${flatField}.type`] === "date"){
