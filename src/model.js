@@ -29,6 +29,16 @@ module.exports = function(koop) {
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
+        let tileExtent = {
+            'xmin': -20037507.067161843,
+            'ymin': -20037507.067161843,
+            'xmax': 20037507.067161843,
+            'ymax': 20037507.067161843,
+            'spatialReference': {
+                'cs': 'pcs',
+                'wkid': 102100
+            }
+        };
 
         if(req.url.includes('VectorTileServer')){
             layerId = "0";
@@ -37,6 +47,7 @@ module.exports = function(koop) {
                 // logger.debug(`Z: ${req.params.z}, X: ${req.params.x}, Y: ${req.params.y}`);
                 // logger.debug(JSON.stringify(tileBBox));
                 req.query.geometry = tileBBox;
+                tileExtent = undefined;
             }
         }
         if(!indexConfig){
@@ -51,7 +62,8 @@ module.exports = function(koop) {
             features: [],
             metadata: {
                 name: serviceName,
-                maxRecordCount: indexConfig.maxResults
+                maxRecordCount: indexConfig.maxResults,
+                extent: tileExtent
             }
         };
 
