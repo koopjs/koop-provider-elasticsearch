@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+* Updates to GeoHash Aggregation to ensure the same level for all queries at a zoom level.
+* Updates to metadata to ensure compatibility with Vector Tile output
+
 ## [2.0.1] - 11-10-2020
 * Updated hit converter to make sure mapping has been defined before attempting to flatten it.
 
