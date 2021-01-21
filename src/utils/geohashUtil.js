@@ -4,9 +4,10 @@ const proj = proj4('GOOGLE', 'WGS84');
 
 class GeohashUtil{
 
-    constructor(boundingBox) {
+    constructor(boundingBox, maxAllowableOffset) {
         this.bbox = null;
         this.precision = 1;
+        this.maxAllowableOffset = maxAllowableOffset;
         if (boundingBox) {
             this.bbox = {};
             if (undefined !== boundingBox.spatialReference && boundingBox.spatialReference.wkid === 102100) {
@@ -35,11 +36,8 @@ class GeohashUtil{
 
         for(let i=0; i<hashes.length; i++){
             let hash = hashes[i];
-
-            if(this._isHashInBounds(hash)){
-                newbbox = true;
-                hashbbox = this._updateBoundingBoxByHash(hash, hashbbox);
-            }
+            newbbox = true;
+            hashbbox = this._updateBoundingBoxByHash(hash, hashbbox);
         }
 
         if(newbbox){
@@ -69,28 +67,28 @@ class GeohashUtil{
     _calculateGeohashPrecision() {
         this.precision = 1;
         if (this.bbox){
-
-            var latDistanceKM = (this.bbox.ymax - this.bbox.ymin) * 111;
-            var tenthDistance = latDistanceKM / 15;
-
-            if(tenthDistance <= 0.00477){
+            if(undefined === this.maxAllowableOffset){
                 this.precision = 9;
-            } else if(tenthDistance <= 0.0191){
-                this.precision = 8;
-            } else if(tenthDistance <= 0.153){
-                this.precision = 7;
-            } else if (tenthDistance <= 0.61){
-                this.precision = 6;
-            } else if (tenthDistance <= 4.9){
-                this.precision = 5;
-            } else if (tenthDistance <= 19.5){
-                this.precision = 4;
-            } else if (tenthDistance <= 156){
-                this.precision = 3;
-            } else if (tenthDistance <= 625){
-                this.precision = 2;
+                // only happens when zoom level is very high
+            } else {
+                if(this.maxAllowableOffset <= 1){
+                    this.precision = 9;
+                } else if(this.maxAllowableOffset <= 2){
+                    this.precision = 8;
+                } else if(this.maxAllowableOffset <= 4){
+                    this.precision = 7;
+                } else if (this.maxAllowableOffset <= 38){
+                    this.precision = 6;
+                } else if (this.maxAllowableOffset <= 152){
+                    this.precision = 5;
+                } else if (this.maxAllowableOffset <= 1222){
+                    this.precision = 4;
+                } else if (this.maxAllowableOffset <= 4891){
+                    this.precision = 3;
+                } else if (this.maxAllowableOffset <= 19567){
+                    this.precision = 2;
+                }
             }
-            // console.log(`${this.precision} Hash Level`)
         }
     }
 }

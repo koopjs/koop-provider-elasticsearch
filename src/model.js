@@ -29,6 +29,21 @@ module.exports = function(koop) {
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
+        let extent = indexConfig.extent;
+
+        if(!extent){
+            // use global extent by default
+            extent = {
+                'xmin': -20037507.067161843,
+                'ymin': -20037507.067161843,
+                'xmax': 20037507.067161843,
+                'ymax': 20037507.067161843,
+                'spatialReference': {
+                    'cs': 'pcs',
+                    'wkid': 102100
+                }
+            };
+        }
 
         if(req.url.includes('VectorTileServer')){
             layerId = "0";
@@ -37,6 +52,7 @@ module.exports = function(koop) {
                 // logger.debug(`Z: ${req.params.z}, X: ${req.params.x}, Y: ${req.params.y}`);
                 // logger.debug(JSON.stringify(tileBBox));
                 req.query.geometry = tileBBox;
+                extent = undefined;
             }
         }
         if(!indexConfig){
@@ -51,7 +67,8 @@ module.exports = function(koop) {
             features: [],
             metadata: {
                 name: serviceName,
-                maxRecordCount: indexConfig.maxResults
+                maxRecordCount: indexConfig.maxResults,
+                extent: extent
             }
         };
 
@@ -141,18 +158,13 @@ module.exports = function(koop) {
                         return joinVal;
                     });
 
-                    // if(joinValues.length === 0){
-                    //     callback(null, featureCollection);
-                    //     return;
-                    // }
-
                     // update the query with the valid join values
                     esQuery = updateQueryWithJoinValues(esQuery, joinValues,indexConfig);
                 }
-                logger.silly(JSON.stringify(esQuery, null, 2));
+                logger.debug(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.esClients[esId].search(esQuery);
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
-                logger.verbose("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
+                logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
 
                 for (let i = 0; i < searchResponse.hits.hits.length; i++) {
                     try {
@@ -254,7 +266,7 @@ module.exports = function(koop) {
                         if (!maxRecords || maxRecords > indexConfig.maxResults) {
                             maxRecords = indexConfig.maxResults;
                         }
-                        let geohashUtil = new GeoHashUtil(query.geometry);
+                        let geohashUtil = new GeoHashUtil(query.geometry, query.maxAllowableOffset);
                         if(geohashUtil.bbox){
                             geohashUtil.fitBoundingBoxToHashes();
                         }
@@ -311,16 +323,19 @@ module.exports = function(koop) {
                 }
             };
 
-            logger.silly(`Aggregations: ${JSON.stringify(esQuery.body.aggregations, null, 2)}`);
+            // logger.debug("Agg Query");
+            // logger.debug(esQuery.body);
 
             esClient.search(esQuery).then( response => {
                 let geohashFeatures = [];
                 let hitConverter = new HitConverter();
                 for(let i = 0; i < response.aggregations.agg_grid.buckets.length; i++){
                     let feature = hitConverter.featureFromGeoHashBucket(response.aggregations.agg_grid.buckets[i],
-                        response.hits.hits[0], indexConfig, mapping);
+                        response.hits.hits[0], indexConfig, mapping, esQuery.body.query.bool);
                     // feature = addDocumentReturnFields(feature, response.hits.hits[0]._source, indexConfig.returnFields);
-                    geohashFeatures.push(feature);
+                    if(feature){
+                        geohashFeatures.push(feature);
+                    }
                 }
                 resolve(geohashFeatures);
             }).catch(error => {
@@ -376,7 +391,7 @@ module.exports = function(koop) {
         }
 
         try {
-            logger.silly(JSON.stringify(queryBody, null,2));
+            logger.debug(JSON.stringify(queryBody, null,2));
             let response = await esClient.search(queryBody);
             let shapeHits = response.hits.hits;
             return Promise.resolve(shapeHits);
@@ -644,8 +659,8 @@ module.exports = function(koop) {
             }
         }
 
-        logger.silly(`Outbound Network call, Elastic query to index: ${esQuery.index}: Query:`);
-        logger.silly(JSON.stringify(esQuery.body, null, 2));
+        // logger.debug(`Outbound Network call, Elastic query to index: ${esQuery.index}: Query:`);
+        // logger.debug(esQuery.body);
         return esQuery;
     }
 
@@ -668,32 +683,33 @@ module.exports = function(koop) {
             if (!bbox) {
                 return null;
             }
-
-            if (bbox.rings !== undefined) {
-                bbox.xmin = 180.0;
-                bbox.xmax = -180.0;
-                bbox.ymax = -90.0;
-                bbox.ymin = 90.0;
-                for (var ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
-                    bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
-                    bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
-                    bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
-                    bbox.ymax = Math.max(bbox.ymax, bbox.rings[0][ringIdx][1]);
-                }
-            }
-
-            let topLeft = [bbox.xmin, bbox.ymax];
-            let bottomRight = [bbox.xmax, bbox.ymin];
-            if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
-                topLeft = proj.forward([bbox.xmin, bbox.ymax]);
-                bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
-            }
+            let topLeft = undefined;
+            let bottomRight = undefined;
 
             if (aggregationBBox) {
                 topLeft = [aggregationBBox.xmin, aggregationBBox.ymax];
                 bottomRight = [aggregationBBox.xmax, aggregationBBox.ymin];
-            }
+            } else {
+                if (bbox.rings !== undefined) {
+                    bbox.xmin = 180.0;
+                    bbox.xmax = -180.0;
+                    bbox.ymax = -90.0;
+                    bbox.ymin = 90.0;
+                    for (let ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
+                        bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
+                        bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
+                        bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
+                        bbox.ymax = Math.max(bbox.ymax, bbox.rings[0][ringIdx][1]);
+                    }
+                }
 
+                topLeft = [bbox.xmin, bbox.ymax];
+                bottomRight = [bbox.xmax, bbox.ymin];
+                if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
+                    topLeft = proj.forward([bbox.xmin, bbox.ymax]);
+                    bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
+                }
+            }
             // check bounds
             topLeft[0] = Math.max(-180.0, topLeft[0]);
             bottomRight[0] = Math.min(180.0, bottomRight[0]);
@@ -865,7 +881,12 @@ module.exports = function(koop) {
     }
 
     function validateBounds(geometry) {
-        var bbox = geometry;
+        let bbox = geometry;
+        if(bbox.ymax !== undefined){
+            if(bbox.xmax == null && bbox.xmin == null){
+                return false;
+            }
+        }
 
         if(bbox.rings !== undefined){
             bbox.xmin = 180.0;
@@ -905,7 +926,6 @@ module.exports = function(koop) {
             topLeft[1] === bottomRight[1] ||
             topLeft[1] < bottomRight[1]
         ) {
-            console.log("Returning 0 features for invalid bounds check");
             return false;
         } else {
             return true;

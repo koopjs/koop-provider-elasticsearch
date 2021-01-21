@@ -8,8 +8,10 @@ const unflatten = require('flat').unflatten;
 
 class HitConverter{
 
-    constructor(){
+    constructor(customSymbolizers = []){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
+
+        this.customSymbolizers = customSymbolizers;
     }
 
     featureFromHit(hit, indexConfig, mapping=undefined) {
@@ -140,6 +142,15 @@ class HitConverter{
             }
         }
 
+        if(indexConfig.customSymbolizer){
+            this.customSymbolizers.forEach(symbolizer => {
+                if(symbolizer.name === indexConfig.customSymbolizer){
+                    feature = symbolizer.symbolize(feature);
+                    return;
+                }
+            });
+        }
+
         // If configured mapping of return values then check each column and map values
         // to return a different value. This allows us to alias to different values on-the-fly
         if (indexConfig.mapReturnValues) {
@@ -235,8 +246,22 @@ class HitConverter{
         return feature;
     }
 
-    featureFromGeoHashBucket(bucket, hit, indexConfig, mapping=undefined){
-        var feature = {
+    featureFromGeoHashBucket(bucket, hit, indexConfig, mapping=undefined, boolQuery){
+        let bbox = geohash.decode_bbox(bucket.key);
+        let filter = boolQuery.filter;
+        if(filter){
+            filter = filter[0];
+            let filterBBox = filter.geo_bounding_box.shape;
+            // compare filter to bbox [ymin,xmin,ymax,xmax]
+            if(filterBBox.bottom_right[1] >= bbox[2] ||
+                filterBBox.top_left[1] <= bbox[0] ||
+                filterBBox.top_left[0] >= bbox[3] ||
+                filterBBox.bottom_right[0] <= bbox[1]
+            ){
+                return null;
+            }
+        }
+        let feature = {
             type: 'Feature',
             geometry: {
                 type: 'Polygon'
@@ -251,7 +276,16 @@ class HitConverter{
         delete sampleFeature.properties.OBJECTID;
         Object.assign(feature.properties, sampleFeature.properties);
 
-        let bbox = geohash.decode_bbox(bucket.key);
+        feature.properties.OBJECTID = this.objectIDFromKey(bucket.key);
+        console.log(`OID ${feature.properties.OBJECTID}  Count: ${feature.properties.count}`);
+
+
+        if(bbox[0] === -90 || bbox[0] === 90){
+            bbox[0] = bbox[0] * 0.9999999999;
+        }
+        if(bbox[2] === -90 || bbox[2] === 90){
+            bbox[2] = bbox[2] * 0.9999999999;
+        }
         feature.geometry.coordinates = [[[bbox[1], bbox[0]], [bbox[3], bbox[0]], [bbox[3], bbox[2]], [bbox[1], bbox[2]],
             [bbox[1], bbox[0]]]];
         return feature;
@@ -261,6 +295,19 @@ class HitConverter{
         logger.debug("Setting join shapes");
         this.joinHits = joinHits;
         this.joinConfig = joinConfig;
+    }
+
+    objectIDFromKey(key){
+        let idString = "";
+        for(let i=0; i<key.length; i++){
+            let char = key.charAt(i);
+            if(/[0-9]/.test(char)){
+                idString += char;
+            } else {
+                idString += (key.charCodeAt(i) - 87).toString();
+            }
+        }
+        return Number.parseInt(idString);
     }
 
 }
