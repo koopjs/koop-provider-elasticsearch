@@ -8,8 +8,10 @@ const unflatten = require('flat').unflatten;
 
 class HitConverter{
 
-    constructor(){
+    constructor(customSymbolizers = []){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
+
+        this.customSymbolizers = customSymbolizers;
     }
 
     featureFromHit(hit, indexConfig, mapping=undefined) {
@@ -138,6 +140,15 @@ class HitConverter{
                 feature.geometry.type = "LineString";
                 feature.geometry.coordinates = feature.geometry.coordinates[0];
             }
+        }
+
+        if(indexConfig.customSymbolizer){
+            this.customSymbolizers.forEach(symbolizer => {
+                if(symbolizer.name === indexConfig.customSymbolizer){
+                    feature = symbolizer.symbolize(feature);
+                    return;
+                }
+            });
         }
 
         // If configured mapping of return values then check each column and map values
