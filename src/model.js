@@ -161,10 +161,10 @@ module.exports = function(koop) {
                     // update the query with the valid join values
                     esQuery = updateQueryWithJoinValues(esQuery, joinValues,indexConfig);
                 }
-                logger.silly(JSON.stringify(esQuery, null, 2));
+                logger.debug(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.esClients[esId].search(esQuery);
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
-                logger.silly("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
+                logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
 
                 for (let i = 0; i < searchResponse.hits.hits.length; i++) {
                     try {
@@ -391,7 +391,7 @@ module.exports = function(koop) {
         }
 
         try {
-            logger.silly(JSON.stringify(queryBody, null,2));
+            logger.debug(JSON.stringify(queryBody, null,2));
             let response = await esClient.search(queryBody);
             let shapeHits = response.hits.hits;
             return Promise.resolve(shapeHits);
