@@ -13,7 +13,6 @@ const logger = new Logger(config);
 const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
-// const ArcSymbolizer = require("./utils/arcSymbolizer");
 
 module.exports = function(koop) {
     this.customSymbolizers = [];
