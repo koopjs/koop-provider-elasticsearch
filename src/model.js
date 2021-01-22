@@ -62,7 +62,7 @@ module.exports = function(koop) {
             layerId = "0";
             if(req.params.x && req.params.y && req.params.z){
                 const tileBBox = tileIndexToBBox(parseInt(req.params.x), parseInt(req.params.y), parseInt(req.params.z),
-                    customSymbolizer ? customSymbolizer.buffer : 0);
+                    customSymbolizer ? customSymbolizer.tileBuffer : 0);
                 req.query.geometry = tileBBox;
                 req.query.maxAllowableOffset = Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(req.params.z)));
                 //TODO: Investigate using the bbox extent (must be in web mercator)
@@ -960,8 +960,4 @@ module.exports = function(koop) {
         }
         return true;
     }
-
-    // function getIndexConfig(indexName, esConfig) {
-    //     return esConfig.indices[indexName];
-    // }
 };
