@@ -8,13 +8,13 @@ const unflatten = require('flat').unflatten;
 
 class HitConverter{
 
-    constructor(customSymbolizers = []){
+    constructor(customSymbolizer = undefined){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
 
-        this.customSymbolizers = customSymbolizers;
+        this.customSymbolizer = customSymbolizer;
     }
 
-    featureFromHit(hit, indexConfig, mapping=undefined) {
+    featureFromHit(hit, indexConfig, mapping=undefined, maxAllowableOffset = 1) {
         //console.log("hit:", JSON.stringify(hit));
 
         let feature = {
@@ -126,7 +126,7 @@ class HitConverter{
                     }
                 } else {
                     pointType = "Point";
-                    coords = feature.geometry.split(",").map(function(coord) {
+                    coords = feature.geometry.split(",").map( coord => {
                         return parseFloat(coord);
                     }).reverse();
                 }
@@ -140,15 +140,6 @@ class HitConverter{
                 feature.geometry.type = "LineString";
                 feature.geometry.coordinates = feature.geometry.coordinates[0];
             }
-        }
-
-        if(indexConfig.customSymbolizer){
-            this.customSymbolizers.forEach(symbolizer => {
-                if(symbolizer.name === indexConfig.customSymbolizer){
-                    feature = symbolizer.symbolize(feature);
-                    return;
-                }
-            });
         }
 
         // If configured mapping of return values then check each column and map values
@@ -241,6 +232,10 @@ class HitConverter{
             if(Array.isArray(feature.properties[propNames[i]])){
                 feature.properties[propNames[i]] = feature.properties[propNames[i]].join(', ');
             }
+        }
+
+        if(this.customSymbolizer){
+            feature = this.customSymbolizer.symbolize(feature, maxAllowableOffset);
         }
 
         return feature;

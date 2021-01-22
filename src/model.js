@@ -13,8 +13,11 @@ const logger = new Logger(config);
 const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
+// const ArcSymbolizer = require("./utils/arcSymbolizer");
 
 module.exports = function(koop) {
+    this.customSymbolizers = [];
+
     this.setTimeExtent = function (featureCollection){
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
     };
@@ -30,6 +33,16 @@ module.exports = function(koop) {
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
         let extent = indexConfig.extent;
+        let customSymbolizer = undefined;
+
+        if(indexConfig.customSymbolizer){
+            this.customSymbolizers.forEach(symbolizer => {
+                if(symbolizer.name === indexConfig.customSymbolizer){
+                    customSymbolizer = symbolizer;
+                    return;
+                }
+            });
+        }
 
         if(!extent){
             // use global extent by default
@@ -48,12 +61,15 @@ module.exports = function(koop) {
         if(req.url.includes('VectorTileServer')){
             layerId = "0";
             if(req.params.x && req.params.y && req.params.z){
-                const tileBBox = tileIndexToBBox(parseInt(req.params.x), parseInt(req.params.y), parseInt(req.params.z));
-                // logger.debug(`Z: ${req.params.z}, X: ${req.params.x}, Y: ${req.params.y}`);
-                // logger.debug(JSON.stringify(tileBBox));
+                const tileBBox = tileIndexToBBox(parseInt(req.params.x), parseInt(req.params.y), parseInt(req.params.z),
+                    customSymbolizer ? customSymbolizer.buffer : 0);
                 req.query.geometry = tileBBox;
+                req.query.maxAllowableOffset = Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(req.params.z)));
+                //TODO: Investigate using the bbox extent (must be in web mercator)
                 extent = undefined;
             }
+        } else {
+            extent = undefined;
         }
         if(!indexConfig){
             logger.warn("No Layer with name " + serviceName + " is configured.");
@@ -71,6 +87,10 @@ module.exports = function(koop) {
                 extent: extent
             }
         };
+
+        if(customSymbolizer){
+            featureCollection.metadata.vt = customSymbolizer.vtStyle();
+        }
 
         // For Time Aware Layers
         if(indexConfig.timeInfo){
@@ -140,7 +160,7 @@ module.exports = function(koop) {
                 // check for join shapes
                 let useJoinShapes = !!indexConfig.shapeIndex;
                 let joinShapeHits = null;
-                let hitConverter = new HitConverter();
+                let hitConverter = new HitConverter(customSymbolizer);
 
                 if(useJoinShapes){
                     let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
@@ -161,14 +181,14 @@ module.exports = function(koop) {
                     // update the query with the valid join values
                     esQuery = updateQueryWithJoinValues(esQuery, joinValues,indexConfig);
                 }
-                logger.debug(JSON.stringify(esQuery, null, 2));
+                // logger.debug(esQuery);
                 let searchResponse = await this.esClients[esId].search(esQuery);
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
 
                 for (let i = 0; i < searchResponse.hits.hits.length; i++) {
                     try {
-                        let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig, mapping);
+                        let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig, mapping, query.maxAllowableOffset);
                         if(feature){
                             featureCollection.features.push(feature);
                         }
@@ -226,6 +246,10 @@ module.exports = function(koop) {
 
                 if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {
                     featureCollection.metadata.geometryType = "MultiPoint";
+                } else if (featureCollection.features.length){
+                    featureCollection.metadata.geometryType = featureCollection.features[0].geometry.type;
+                } else {
+                    featureCollection.metadata.geometryType = indexConfig.geometryType;
                 }
 
                 // returnCountOnly only set. This appears to trigger the count response in featureserver
@@ -309,6 +333,10 @@ module.exports = function(koop) {
         }
     };
 
+    this.registerCustomSymbolizer = function (symbolizer){
+        this.customSymbolizers.push(symbolizer);
+    }
+
     function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient){
         return new Promise( (resolve, reject) => {
             // just aggs, no need to get documents back
@@ -355,12 +383,12 @@ module.exports = function(koop) {
         return (180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))));
     }
 
-    function tileIndexToBBox(x,y,z){
+    function tileIndexToBBox(x,y,z,buffer=0){
         const xmin = tile2long(x, z);
         const xmax = tile2long(x+1, z);
         const ymin = tile2lat(y+1, z);
         const ymax = tile2lat(y, z);
-        return {xmin:xmin, ymin:ymin, xmax:xmax, ymax:ymax};
+        return {xmin:xmin-Math.abs(xmin*buffer), ymin:ymin-Math.abs(ymin*buffer), xmax:xmax+Math.abs(xmax*buffer), ymax:ymax+Math.abs(ymax*buffer)};
     }
 
     async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery){
