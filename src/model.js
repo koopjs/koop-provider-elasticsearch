@@ -20,6 +20,13 @@ module.exports = function(koop) {
     this.setTimeExtent = function (featureCollection){
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
     };
+
+    this.getTileOffset = function (z){
+        // Emulate the offset that would come from a feature service request with a minimum of 4.864
+        // Level 22 has 0.019 meters per pixel and this increases by a factor of 2 as the tile level goes down
+        return Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(z)));
+    }
+
     this.getData = async function(req, callback) {
         if(!this.esClients){
             this.esClients = ElasticConnectUtil.initializeESClients();
@@ -32,16 +39,7 @@ module.exports = function(koop) {
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
         let extent = indexConfig.extent;
-        let customSymbolizer = undefined;
-
-        if(indexConfig.customSymbolizer){
-            this.customSymbolizers.forEach(symbolizer => {
-                if(symbolizer.name === indexConfig.customSymbolizer){
-                    customSymbolizer = symbolizer;
-                    return;
-                }
-            });
-        }
+        let customSymbolizer = this.getCustomSymbolizer(indexConfig);
 
         if(!extent){
             // use global extent by default
@@ -63,7 +61,7 @@ module.exports = function(koop) {
                 const tileBBox = tileIndexToBBox(parseInt(req.params.x), parseInt(req.params.y), parseInt(req.params.z),
                     customSymbolizer ? customSymbolizer.tileBuffer : 0);
                 req.query.geometry = tileBBox;
-                req.query.maxAllowableOffset = Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(req.params.z)));
+                req.query.maxAllowableOffset = this.getTileOffset(req.params.z);
                 //TODO: Investigate using the bbox extent (must be in web mercator)
                 extent = undefined;
             }
@@ -336,6 +334,19 @@ module.exports = function(koop) {
         this.customSymbolizers.push(symbolizer);
     }
 
+    this.getCustomSymbolizer = function (indexConfig){
+        let customSymbolizer = undefined;
+        if(indexConfig.customSymbolizer){
+            this.customSymbolizers.forEach(symbolizer => {
+                if(symbolizer.name === indexConfig.customSymbolizer){
+                    customSymbolizer = symbolizer;
+                    return;
+                }
+            });
+        }
+        return customSymbolizer;
+    }
+
     function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient){
         return new Promise( (resolve, reject) => {
             // just aggs, no need to get documents back
@@ -383,11 +394,15 @@ module.exports = function(koop) {
     }
 
     function tileIndexToBBox(x,y,z,buffer=0){
-        const xmin = tile2long(x, z);
-        const xmax = tile2long(x+1, z);
-        const ymin = tile2lat(y+1, z);
-        const ymax = tile2lat(y, z);
-        return {xmin:xmin-Math.abs(xmin*buffer), ymin:ymin-Math.abs(ymin*buffer), xmax:xmax+Math.abs(xmax*buffer), ymax:ymax+Math.abs(ymax*buffer)};
+        let xmin = tile2long(x, z);
+        let xmax = tile2long(x+1, z);
+        let ymin = tile2lat(y+1, z);
+        let ymax = tile2lat(y, z);
+        xmin = xmin-Math.abs(xmin*buffer);
+        ymin = ymin-Math.abs(ymin*buffer);
+        xmax = xmax+Math.abs(xmax*buffer);
+        ymax = ymax+Math.abs(ymax*buffer);
+        return {xmin:xmin, ymin:ymin, xmax:xmax, ymax:ymax};
     }
 
     async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery){

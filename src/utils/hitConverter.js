@@ -8,7 +8,7 @@ const unflatten = require('flat').unflatten;
 
 class HitConverter{
 
-    constructor(customSymbolizer = undefined){
+    constructor(customSymbolizer){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
 
         this.customSymbolizer = customSymbolizer;
