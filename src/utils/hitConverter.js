@@ -14,8 +14,18 @@ class HitConverter{
         this.customSymbolizer = customSymbolizer;
     }
 
-    featureFromHit(hit, indexConfig, mapping=undefined, maxAllowableOffset = 1) {
+    /**
+     *
+     * @param hit
+     * @param indexConfig
+     * @param options - mapping: the ElasticSearch mapping for the index, maxAllowableOffset - the number of meters per pixel
+     * @returns {null|{type: string, properties: {}}}
+     */
+    featureFromHit(hit, indexConfig, options) {
         //console.log("hit:", JSON.stringify(hit));
+
+        let mapping = options.mapping;
+        let maxAllowableOffset = options.maxAllowableOffset ? options.maxAllowableOffset : 1;
 
         let feature = {
             type: 'Feature',

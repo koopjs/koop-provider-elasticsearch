@@ -58,8 +58,7 @@ module.exports = function(koop) {
         if(req.url.includes('VectorTileServer')){
             layerId = "0";
             if(req.params.x && req.params.y && req.params.z){
-                const tileBBox = tileIndexToBBox(parseInt(req.params.x), parseInt(req.params.y), parseInt(req.params.z),
-                    customSymbolizer ? customSymbolizer.tileBuffer : 0);
+                const tileBBox = getTileBBox(req, customSymbolizer);
                 req.query.geometry = tileBBox;
                 req.query.maxAllowableOffset = this.getTileOffset(req.params.z);
                 //TODO: Investigate using the bbox extent (must be in web mercator)
@@ -185,7 +184,9 @@ module.exports = function(koop) {
 
                 for (let i = 0; i < searchResponse.hits.hits.length; i++) {
                     try {
-                        let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig, mapping, query.maxAllowableOffset);
+                        let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig,
+                            {mapping: mapping,
+                            maxAllowableOffset: query.maxAllowableOffset});
                         if(feature){
                             featureCollection.features.push(feature);
                         }
@@ -334,17 +335,10 @@ module.exports = function(koop) {
         this.customSymbolizers.push(symbolizer);
     }
 
-    this.getCustomSymbolizer = function (indexConfig){
-        let customSymbolizer = undefined;
-        if(indexConfig.customSymbolizer){
-            this.customSymbolizers.forEach(symbolizer => {
-                if(symbolizer.name === indexConfig.customSymbolizer){
-                    customSymbolizer = symbolizer;
-                    return;
-                }
-            });
-        }
-        return customSymbolizer;
+    this.getCustomSymbolizer = function (indexConfig = {}){
+        return this.customSymbolizers.find(symbolizer => {
+            return symbolizer.name === indexConfig.customSymbolizer
+        });
     }
 
     function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient){
@@ -393,7 +387,11 @@ module.exports = function(koop) {
         return (180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))));
     }
 
-    function tileIndexToBBox(x,y,z,buffer=0){
+    function getTileBBox(request, customSymbolizer){
+        let x = parseInt(req.params.x);
+        let y = parseInt(req.params.y);
+        let z = parseInt(req.params.z);
+        let buffer = customSymbolizer ? customSymbolizer.tileBuffer : 0;
         let xmin = tile2long(x, z);
         let xmax = tile2long(x+1, z);
         let ymin = tile2lat(y+1, z);
