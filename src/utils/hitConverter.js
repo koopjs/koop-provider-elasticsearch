@@ -8,14 +8,24 @@ const unflatten = require('flat').unflatten;
 
 class HitConverter{
 
-    constructor(customSymbolizers = []){
+    constructor(customSymbolizer){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
 
-        this.customSymbolizers = customSymbolizers;
+        this.customSymbolizer = customSymbolizer;
     }
 
-    featureFromHit(hit, indexConfig, mapping=undefined) {
+    /**
+     *
+     * @param hit
+     * @param indexConfig
+     * @param options - mapping: the ElasticSearch mapping for the index, maxAllowableOffset - the number of meters per pixel
+     * @returns {null|{type: string, properties: {}}}
+     */
+    featureFromHit(hit, indexConfig, options) {
         //console.log("hit:", JSON.stringify(hit));
+
+        let mapping = options.mapping;
+        let maxAllowableOffset = options.maxAllowableOffset ? options.maxAllowableOffset : 1;
 
         let feature = {
             type: 'Feature',
@@ -126,7 +136,7 @@ class HitConverter{
                     }
                 } else {
                     pointType = "Point";
-                    coords = feature.geometry.split(",").map(function(coord) {
+                    coords = feature.geometry.split(",").map( coord => {
                         return parseFloat(coord);
                     }).reverse();
                 }
@@ -140,15 +150,6 @@ class HitConverter{
                 feature.geometry.type = "LineString";
                 feature.geometry.coordinates = feature.geometry.coordinates[0];
             }
-        }
-
-        if(indexConfig.customSymbolizer){
-            this.customSymbolizers.forEach(symbolizer => {
-                if(symbolizer.name === indexConfig.customSymbolizer){
-                    feature = symbolizer.symbolize(feature);
-                    return;
-                }
-            });
         }
 
         // If configured mapping of return values then check each column and map values
@@ -241,6 +242,10 @@ class HitConverter{
             if(Array.isArray(feature.properties[propNames[i]])){
                 feature.properties[propNames[i]] = feature.properties[propNames[i]].join(', ');
             }
+        }
+
+        if(this.customSymbolizer){
+            feature = this.customSymbolizer.symbolize(feature, maxAllowableOffset);
         }
 
         return feature;
