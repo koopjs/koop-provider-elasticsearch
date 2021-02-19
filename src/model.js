@@ -388,9 +388,9 @@ module.exports = function(koop) {
     }
 
     function getTileBBox(request, customSymbolizer){
-        let x = parseInt(req.params.x);
-        let y = parseInt(req.params.y);
-        let z = parseInt(req.params.z);
+        let x = parseInt(request.params.x);
+        let y = parseInt(request.params.y);
+        let z = parseInt(request.params.z);
         let buffer = customSymbolizer ? customSymbolizer.tileBuffer : 0;
         let xmin = tile2long(x, z);
         let xmax = tile2long(x+1, z);
