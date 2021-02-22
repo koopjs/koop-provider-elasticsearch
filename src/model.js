@@ -402,7 +402,7 @@ module.exports = function(koop) {
         ymin = ymin-Math.abs(ydiff*buffer);
         xmax = xmax+Math.abs(xdiff*buffer);
         ymax = ymax+Math.abs(ydiff*buffer);
-        return {xmin:xmin, ymin:ymin, xmax:xmax, ymax:ymax};
+        return {xmin, ymin, xmax, ymax};
     }
 
     async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery){
