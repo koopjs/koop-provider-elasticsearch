@@ -396,11 +396,13 @@ module.exports = function(koop) {
         let xmax = tile2long(x+1, z);
         let ymin = tile2lat(y+1, z);
         let ymax = tile2lat(y, z);
-        xmin = xmin-Math.abs(xmin*buffer);
-        ymin = ymin-Math.abs(ymin*buffer);
-        xmax = xmax+Math.abs(xmax*buffer);
-        ymax = ymax+Math.abs(ymax*buffer);
-        return {xmin:xmin, ymin:ymin, xmax:xmax, ymax:ymax};
+        let ydiff = ymax-ymin;
+        let xdiff = xmax-xmin;
+        xmin = xmin-Math.abs(xdiff*buffer);
+        ymin = ymin-Math.abs(ydiff*buffer);
+        xmax = xmax+Math.abs(xdiff*buffer);
+        ymax = ymax+Math.abs(ydiff*buffer);
+        return {xmin, ymin, xmax, ymax};
     }
 
     async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery){

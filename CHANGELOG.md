@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Configured buffer for vector tiles behaves more consistently
+
 ## [2.2.1] - 02-19-2020
 ### Fixed
 * Undefined reference to `req`
