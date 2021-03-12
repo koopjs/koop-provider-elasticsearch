@@ -136,9 +136,14 @@ class HitConverter{
                     }
                 } else {
                     pointType = "Point";
-                    coords = feature.geometry.split(",").map( coord => {
-                        return parseFloat(coord);
-                    }).reverse();
+                    if(feature.geometry.hasOwnProperty('lon')){
+                        coords = [feature.geometry.lon, feature.geometry.lat];
+                    } else {
+                        coords = feature.geometry.split(",").map( coord => {
+                            return parseFloat(coord);
+                        }).reverse();
+                    }
+
                 }
 
                 feature.geometry = {
