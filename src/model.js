@@ -244,7 +244,7 @@ module.exports = function(koop) {
 
                 if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {
                     featureCollection.metadata.geometryType = "MultiPoint";
-                } else if (featureCollection.features.length){
+                } else if (featureCollection.features.length && featureCollection.features[0].geometry !== undefined){
                     featureCollection.metadata.geometryType = featureCollection.features[0].geometry.type;
                 } else {
                     featureCollection.metadata.geometryType = indexConfig.geometryType;
