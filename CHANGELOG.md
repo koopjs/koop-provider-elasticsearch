@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Fixed
 * Handle geo_point with lat/lon properties that is not multi-point.
+* Configured buffer for vector tiles behaves more consistently
 
 ## [2.2.1] - 02-19-2020
 ### Fixed
