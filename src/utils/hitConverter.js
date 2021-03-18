@@ -10,7 +10,6 @@ class HitConverter{
 
     constructor(customSymbolizer){
         // TODO: Keep a dictionary of mapping info here to speed up future queries.
-
         this.customSymbolizer = customSymbolizer;
     }
 
@@ -183,8 +182,13 @@ class HitConverter{
             }
         } else {
             // no mappings, iterate setting each field directly (less overhead)
-            for(var i=0; i<indexConfig.returnFields.length; i++){
-                feature.properties[indexConfig.returnFields[i]] = hit._source[indexConfig.returnFields[i]];
+            // return whatever is in the hits source.  By default this will be configured fields
+            // but if outFields was set it can be overridden.
+            let hitFields = Object.keys(hit._source);
+            for(let i=0; i<hitFields.length; i++){
+                if(hitFields[i] !== indexConfig.geometryField){
+                    feature.properties[hitFields[i]] = hit._source[hitFields[i]];
+                }
             }
         }
 
