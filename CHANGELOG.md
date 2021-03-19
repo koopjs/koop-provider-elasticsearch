@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Changed
+* Update to hit converter that allows outFields to override the return fields. Even allows non-configured fields to be returned.
+
 ## [2.2.2] - 03-12-2021
 ### Fixed
 * Handle geo_point with lat/lon properties that is not multi-point.
