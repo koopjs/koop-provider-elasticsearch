@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [2.3.0] - 03-22-2021
 ### Changed
 * Update to hit converter that allows outFields to override the return fields. Even allows non-configured fields to be returned.
 
@@ -32,8 +32,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
-[2.2.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.1...v2.1.2
-[2.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.0...v2.1.1
+[2.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.2...v2.3.0
+[2.2.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.1...v2.2.2
+[2.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.0.0...v2.0.1

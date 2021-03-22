@@ -1,6 +1,6 @@
 {
   "name": "@koopjs/provider-elasticsearch",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "Elastic Search Provider for Koop",
   "main": "src/index.js",
   "scripts": {
