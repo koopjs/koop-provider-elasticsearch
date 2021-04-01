@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+* Added ability to register a custom function to generate index names based on a configured pattern.
+
 ## [2.3.0] - 03-22-2021
 ### Changed
 * Update to hit converter that allows outFields to override the return fields. Even allows non-configured fields to be returned.
