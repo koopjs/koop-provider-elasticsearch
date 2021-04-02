@@ -2,7 +2,8 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [2.4.0] - 04-01-2021
+### Added
 * Added ability to register a custom function to generate index names based on a configured pattern.
 
 ## [2.3.0] - 03-22-2021
@@ -35,6 +36,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[2.4.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.0...v2.2.1
