@@ -16,6 +16,7 @@ const ElasticConnectUtil = require('./utils/elasticConnectUtil');
 
 module.exports = function(koop) {
     this.customSymbolizers = [];
+    this.customIndexNameBuilder = undefined;
 
     this.setTimeExtent = function (featureCollection){
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
@@ -139,7 +140,10 @@ module.exports = function(koop) {
                 }
 
                 if (query.returnCountOnly && query.returnCountOnly === true) {
-                    let countQuery = buildESQuery(indexConfig, query, null, mapping);
+                    let countQuery = buildESQuery(indexConfig, query, {
+                        mapping,
+                        customIndexNameBuilder:this.customIndexNameBuilder
+                    });
                     this.esClients[esId].count(countQuery).then(function (resp) {
                         logger.debug("count resp:", resp);
                         featureCollection.count = resp.count;
@@ -151,7 +155,11 @@ module.exports = function(koop) {
                     return;
                 }
 
-                let esQuery = buildESQuery(indexConfig, query, maxRecords, mapping);
+                let esQuery = buildESQuery(indexConfig, query, {
+                    maxRecords,
+                    mapping,
+                    customIndexNameBuilder:this.customIndexNameBuilder
+                });
 
                 // check for join shapes
                 let useJoinShapes = !!indexConfig.shapeIndex;
@@ -186,7 +194,7 @@ module.exports = function(koop) {
                     try {
                         let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig,
                             {mapping: mapping,
-                            maxAllowableOffset: query.maxAllowableOffset});
+                                maxAllowableOffset: query.maxAllowableOffset});
                         if(feature){
                             featureCollection.features.push(feature);
                         }
@@ -292,7 +300,12 @@ module.exports = function(koop) {
                         if(geohashUtil.bbox){
                             geohashUtil.fitBoundingBoxToHashes();
                         }
-                        let esQuery = buildESQuery(indexConfig, query, maxRecords, mapping, geohashUtil.bbox);
+                        let esQuery = buildESQuery(indexConfig, query, {
+                            maxRecords,
+                            mapping,
+                            aggregationBBox:geohashUtil.bbox,
+                            customIndexNameBuilder:this.customIndexNameBuilder
+                        });
 
                         queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.esClients[esId]).then( result => {
                             featureCollection.features = result;
@@ -330,6 +343,10 @@ module.exports = function(koop) {
             }
         }
     };
+
+    this.registerCustomIndexNameBuilder = function (indexer){
+        this.customIndexNameBuilder = indexer;
+    }
 
     this.registerCustomSymbolizer = function (symbolizer){
         this.customSymbolizers.push(symbolizer);
@@ -531,10 +548,20 @@ module.exports = function(koop) {
         request.end();
     }
 
-    function buildESQuery(indexConfig, query, maxRecords, mapping, aggregationBBox = null) {
+    function buildESQuery(indexConfig, query, options) {
+        let maxRecords = options.maxRecords;
+        let mapping = options.mapping;
+        let aggregationBBox = options.aggregationBBox;
+        let customIndexNameBuilder = options.customIndexNameBuilder;
         var rawSearchKey = 'rawElasticQuery';
+        let indexName = indexConfig.index;
+        if(indexConfig.hasOwnProperty("indexNameConfig")){
+            if(customIndexNameBuilder){
+                indexName = customIndexNameBuilder(indexConfig, query);
+            }
+        }
         var esQuery = {
-            index: indexConfig.index,
+            index: indexName,
             body: {
                 query: {
                     bool: {
