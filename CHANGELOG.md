@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unpublished
+### Added
+* Support to allow for registering custom aggregations
+* Support to specify which sub-layer to display for vector tiles in JSON config
+* Ability to specify styling for vector tiles in JSON config
+
 ## [2.4.0] - 04-01-2021
 ### Added
 * Added ability to register a custom function to generate index names based on a configured pattern.
