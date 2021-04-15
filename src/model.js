@@ -14,22 +14,23 @@ const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
 
-module.exports = function(koop) {
+module.exports = function (koop) {
     this.customSymbolizers = [];
+    this.customAggregations = [];
     this.customIndexNameBuilder = undefined;
 
-    this.setTimeExtent = function (featureCollection){
+    this.setTimeExtent = function (featureCollection) {
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
     };
 
-    this.getTileOffset = function (z){
+    this.getTileOffset = function (z) {
         // Emulate the offset that would come from a feature service request with a minimum of 4.864
         // Level 22 has 0.019 meters per pixel and this increases by a factor of 2 as the tile level goes down
         return Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(z)));
     }
 
-    this.getData = async function(req, callback) {
-        if(!this.esClients){
+    this.getData = async function (req, callback) {
+        if (!this.esClients) {
             this.esClients = ElasticConnectUtil.initializeESClients();
             this.esConfig = null;
             this.indexInfo = new IndexInfo(this.esClients);
@@ -42,7 +43,7 @@ module.exports = function(koop) {
         let extent = indexConfig.extent;
         let customSymbolizer = this.getCustomSymbolizer(indexConfig);
 
-        if(!extent){
+        if (!extent) {
             // use global extent by default
             extent = {
                 'xmin': -20037507.067161843,
@@ -56,9 +57,9 @@ module.exports = function(koop) {
             };
         }
 
-        if(req.url.includes('VectorTileServer')){
-            layerId = "0";
-            if(req.params.x && req.params.y && req.params.z){
+        if (req.url.includes('VectorTileServer')) {
+            layerId = indexConfig.vectorLayerID ? indexConfig.vectorLayerID.toString() : "0";
+            if (req.params.x && req.params.y && req.params.z) {
                 const tileBBox = getTileBBox(req, customSymbolizer);
                 req.query.geometry = tileBBox;
                 req.query.maxAllowableOffset = this.getTileOffset(req.params.z);
@@ -68,7 +69,7 @@ module.exports = function(koop) {
         } else {
             extent = undefined;
         }
-        if(!indexConfig){
+        if (!indexConfig) {
             logger.warn("No Layer with name " + serviceName + " is configured.");
             callback(new Error("No Layer with name " + serviceName + " is configured."), "No Layer with name " + serviceName + " is configured.");
             return;
@@ -85,17 +86,19 @@ module.exports = function(koop) {
             }
         };
 
-        if(customSymbolizer){
+        if (customSymbolizer) {
             featureCollection.metadata.vt = customSymbolizer.vtStyle();
+        } else if (indexConfig.vectorStyle) {
+            featureCollection.metadata.vt = indexConfig.vectorStyle;
         }
 
         // For Time Aware Layers
-        if(indexConfig.timeInfo){
+        if (indexConfig.timeInfo) {
             featureCollection.metadata.timeInfo = indexConfig.timeInfo;
             // if time extent is not present in config, we'll need to generate it at some point.
-            if((indexConfig.timeInfo.timeExtent && indexConfig.timeInfo.timeExtent.length === 2) ||
-                (this.startFieldStats !== undefined && this.endFieldStats !== undefined)){
-                if(this.startFieldStats !== undefined && this.endFieldStats !== undefined){
+            if ((indexConfig.timeInfo.timeExtent && indexConfig.timeInfo.timeExtent.length === 2) ||
+                (this.startFieldStats !== undefined && this.endFieldStats !== undefined)) {
+                if (this.startFieldStats !== undefined && this.endFieldStats !== undefined) {
                     this.setTimeExtent(featureCollection);
                 }
             } else {
@@ -103,7 +106,7 @@ module.exports = function(koop) {
                 try {
                     let result = await this.indexInfo.getStatistics(esId, indexConfig.index, indexConfig.timeInfo.startTimeField);
                     this.startFieldStats = result;
-                    if(indexConfig.timeInfo.startTimeField !== indexConfig.timeInfo.endTimeField){
+                    if (indexConfig.timeInfo.startTimeField !== indexConfig.timeInfo.endTimeField) {
                         this.endFieldStats = await this.indexInfo.getStatistics(esId, indexConfig.index, indexConfig.timeInfo.endTimeField);
                         this.setTimeExtent(featureCollection);
                     } else {
@@ -117,7 +120,7 @@ module.exports = function(koop) {
             }
         }
 
-        if (indexConfig.idField){
+        if (indexConfig.idField) {
             featureCollection.metadata.idField = indexConfig.idField;
         }
 
@@ -130,7 +133,7 @@ module.exports = function(koop) {
         }
 
         // logger.debug(JSON.stringify(esQuery));
-        if(layerId === "0" || undefined === layerId) {
+        if (layerId === "0" || undefined === layerId) {
             try {
                 let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
 
@@ -142,7 +145,7 @@ module.exports = function(koop) {
                 if (query.returnCountOnly && query.returnCountOnly === true) {
                     let countQuery = buildESQuery(indexConfig, query, {
                         mapping,
-                        customIndexNameBuilder:this.customIndexNameBuilder
+                        customIndexNameBuilder: this.customIndexNameBuilder
                     });
                     this.esClients[esId].count(countQuery).then(function (resp) {
                         logger.debug("count resp:", resp);
@@ -158,7 +161,7 @@ module.exports = function(koop) {
                 let esQuery = buildESQuery(indexConfig, query, {
                     maxRecords,
                     mapping,
-                    customIndexNameBuilder:this.customIndexNameBuilder
+                    customIndexNameBuilder: this.customIndexNameBuilder
                 });
 
                 // check for join shapes
@@ -166,7 +169,7 @@ module.exports = function(koop) {
                 let joinShapeHits = null;
                 let hitConverter = new HitConverter(customSymbolizer);
 
-                if(useJoinShapes){
+                if (useJoinShapes) {
                     let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
                     joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.esClients[esId], query);
                     hitConverter.setJoinShapes(joinShapeHits, joinConfig);
@@ -174,8 +177,8 @@ module.exports = function(koop) {
                     let joinValues = joinShapeHits.map(hit => {
                         let joinPath = joinConfig.joinField.split('.');
                         let joinVal = hit._source[joinPath[0]];
-                        for(let i=1; i<joinPath.length; i++){
-                            if(joinPath[i] !== 'keyword'){ // keyword is a property of a field and not a field itself
+                        for (let i = 1; i < joinPath.length; i++) {
+                            if (joinPath[i] !== 'keyword') { // keyword is a property of a field and not a field itself
                                 joinVal = joinVal[joinPath[i]];
                             }
                         }
@@ -183,7 +186,7 @@ module.exports = function(koop) {
                     });
 
                     // update the query with the valid join values
-                    esQuery = updateQueryWithJoinValues(esQuery, joinValues,indexConfig);
+                    esQuery = updateQueryWithJoinValues(esQuery, joinValues, indexConfig);
                 }
                 // logger.debug(esQuery);
                 let searchResponse = await this.esClients[esId].search(esQuery);
@@ -193,9 +196,11 @@ module.exports = function(koop) {
                 for (let i = 0; i < searchResponse.hits.hits.length; i++) {
                     try {
                         let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig,
-                            {mapping: mapping,
-                                maxAllowableOffset: query.maxAllowableOffset});
-                        if(feature){
+                            {
+                                mapping: mapping,
+                                maxAllowableOffset: query.maxAllowableOffset
+                            });
+                        if (feature) {
                             featureCollection.features.push(feature);
                         }
                     } catch (e) {
@@ -252,7 +257,7 @@ module.exports = function(koop) {
 
                 if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {
                     featureCollection.metadata.geometryType = "MultiPoint";
-                } else if (featureCollection.features.length && featureCollection.features[0].geometry !== undefined){
+                } else if (featureCollection.features.length && featureCollection.features[0].geometry !== undefined) {
                     featureCollection.metadata.geometryType = featureCollection.features[0].geometry.type;
                 } else {
                     featureCollection.metadata.geometryType = indexConfig.geometryType;
@@ -266,13 +271,13 @@ module.exports = function(koop) {
                     featureCollection.filtersApplied.offset = true;
                 }
 
-                if(indexConfig.reversePolygons){
+                if (indexConfig.reversePolygons) {
                     featureCollection = rewind(featureCollection);
                 }
 
                 let returnObject = {layers: [featureCollection]};
                 if (indexConfig.aggregations && indexConfig.aggregations.length && undefined === layerId) {
-                    const aggLayers = buildDefaultAggLayers(indexConfig.index, indexConfig.aggregations, mapping, indexConfig.returnFields);
+                    const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations);
                     returnObject.layers = returnObject.layers.concat(aggLayers);
 
                     callback(null, returnObject);
@@ -287,79 +292,97 @@ module.exports = function(koop) {
 
 
         } else if (indexConfig.aggregations && indexConfig.aggregations.length >= parseInt(layerId)) {
-            const aggType = indexConfig.aggregations[parseInt(layerId)-1];
-            switch(aggType){
-                case "geohash":
-                    this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
+            const aggType = indexConfig.aggregations[parseInt(layerId) - 1];
+            if (aggType.name == 'geohash') {
+                this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
 
+                    let maxRecords = query.resultRecordCount;
+                    if (!maxRecords || maxRecords > indexConfig.maxResults) {
+                        maxRecords = indexConfig.maxResults;
+                    }
+                    let geohashUtil = new GeoHashUtil(query.geometry, query.maxAllowableOffset);
+                    if (geohashUtil.bbox) {
+                        geohashUtil.fitBoundingBoxToHashes();
+                    }
+                    let esQuery = buildESQuery(indexConfig, query, {
+                        maxRecords,
+                        mapping,
+                        aggregationBBox: geohashUtil.bbox,
+                        customIndexNameBuilder: this.customIndexNameBuilder
+                    });
+
+                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.esClients[esId]).then(result => {
+                        featureCollection.features = result;
+                        featureCollection.metadata = {
+                            name: indexConfig.index + "_geohash",
+                            maxRecordCount: 10000
+                        };
+                        featureCollection.filtersApplied = {where: true};
+                        featureCollection.filtersApplied.geometry = true;
+                        callback(null, featureCollection);
+                    }).catch(error => {
+                        logger.error(error);
+                        callback(error, featureCollection);
+                    });
+
+                }).catch(error => {
+                    // Handle getMapping promise rejections so browser gets an error response instead of hanging
+                    logger.error(error);
+                    callback(error, featureCollection);
+                });
+            } else {
+                let customAggregation = this.customAggregations.find(agg => agg.name === aggType.name);
+
+                if (customAggregation) {
+                    this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
                         let maxRecords = query.resultRecordCount;
-                        if (!maxRecords || maxRecords > indexConfig.maxResults) {
-                            maxRecords = indexConfig.maxResults;
-                        }
-                        let geohashUtil = new GeoHashUtil(query.geometry, query.maxAllowableOffset);
-                        if(geohashUtil.bbox){
-                            geohashUtil.fitBoundingBoxToHashes();
-                        }
                         let esQuery = buildESQuery(indexConfig, query, {
                             maxRecords,
                             mapping,
-                            aggregationBBox:geohashUtil.bbox,
-                            customIndexNameBuilder:this.customIndexNameBuilder
+                            customIndexNameBuilder: this.customIndexNameBuilder
                         });
-
-                        queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.esClients[esId]).then( result => {
-                            featureCollection.features = result;
-                            featureCollection.metadata = {
-                                name: indexConfig.index + "_geohash",
-                                maxRecordCount: 10000
-                            };
-                            featureCollection.filtersApplied = {where: true};
-                            featureCollection.filtersApplied.geometry = true;
-                            callback(null, featureCollection);
+                        featureCollection = customAggregation.getAggregationFeatures({
+                            indexConfig, mapping, query: esQuery, esClient: this.esClients[esId], featureCollection,
+                            offset: req.query.maxAllowableOffset
+                        }).then(aggregatedFeatureCollection => {
+                            callback(null, aggregatedFeatureCollection);
                         }).catch(error => {
                             logger.error(error);
                             callback(error, featureCollection);
                         });
-
                     }).catch(error => {
                         // Handle getMapping promise rejections so browser gets an error response instead of hanging
                         logger.error(error);
                         callback(error, featureCollection);
                     });
-                    break;
-                case "geohex":
-                    queryHexAggregations(indexConfig, aggServiceConfig, query, (result) => {
-                        var hexFc = JSON.parse(result);
-                        // logger.info("Result Features: ");
-                        // logger.info(JSON.stringify(hexFc, null, 1));
-                        featureCollection.features = hexFc;
-                        featureCollection.metadata = {
-                            name: indexConfig.index + "_hex",
-                            maxRecordCount: 6000
-                        };
-                        callback(null, featureCollection);
-                    });
-                    break;
+
+                }
             }
         }
-    };
+    }
+    ;
 
-    this.registerCustomIndexNameBuilder = function (indexer){
+    this.registerCustomIndexNameBuilder = function (indexer) {
         this.customIndexNameBuilder = indexer;
     }
 
-    this.registerCustomSymbolizer = function (symbolizer){
+    this.registerCustomSymbolizer = function (symbolizer) {
         this.customSymbolizers.push(symbolizer);
     }
 
-    this.getCustomSymbolizer = function (indexConfig = {}){
+    this.registerCustomAggregation = function (aggregation) {
+        this.customAggregations.push(aggregation);
+    }
+
+    this.getCustomSymbolizer = function (indexConfig = {}) {
         return this.customSymbolizers.find(symbolizer => {
             return symbolizer.name === indexConfig.customSymbolizer
         });
     }
 
-    function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient){
-        return new Promise( (resolve, reject) => {
+
+    function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient) {
+        return new Promise((resolve, reject) => {
             // just aggs, no need to get documents back
             esQuery.body.size = 1;
 
@@ -372,17 +395,13 @@ module.exports = function(koop) {
                 }
             };
 
-            // logger.debug("Agg Query");
-            // logger.debug(esQuery.body);
-
-            esClient.search(esQuery).then( response => {
+            esClient.search(esQuery).then(response => {
                 let geohashFeatures = [];
                 let hitConverter = new HitConverter();
-                for(let i = 0; i < response.aggregations.agg_grid.buckets.length; i++){
+                for (let i = 0; i < response.aggregations.agg_grid.buckets.length; i++) {
                     let feature = hitConverter.featureFromGeoHashBucket(response.aggregations.agg_grid.buckets[i],
                         response.hits.hits[0], indexConfig, mapping, esQuery.body.query.bool);
-                    // feature = addDocumentReturnFields(feature, response.hits.hits[0]._source, indexConfig.returnFields);
-                    if(feature){
+                    if (feature) {
                         geohashFeatures.push(feature);
                     }
                 }
@@ -395,34 +414,34 @@ module.exports = function(koop) {
         });
     }
 
-    function tile2long(x,z) {
-        return (x/Math.pow(2,z)*360-180);
+    function tile2long(x, z) {
+        return (x / Math.pow(2, z) * 360 - 180);
     }
 
-    function tile2lat(y,z) {
-        const n=Math.PI-2*Math.PI*y/Math.pow(2,z);
-        return (180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))));
+    function tile2lat(y, z) {
+        const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+        return (180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))));
     }
 
-    function getTileBBox(request, customSymbolizer){
+    function getTileBBox(request, customSymbolizer) {
         let x = parseInt(request.params.x);
         let y = parseInt(request.params.y);
         let z = parseInt(request.params.z);
         let buffer = customSymbolizer ? customSymbolizer.tileBuffer : 0;
         let xmin = tile2long(x, z);
-        let xmax = tile2long(x+1, z);
-        let ymin = tile2lat(y+1, z);
+        let xmax = tile2long(x + 1, z);
+        let ymin = tile2lat(y + 1, z);
         let ymax = tile2lat(y, z);
-        let ydiff = ymax-ymin;
-        let xdiff = xmax-xmin;
-        xmin = xmin-Math.abs(xdiff*buffer);
-        ymin = ymin-Math.abs(ydiff*buffer);
-        xmax = xmax+Math.abs(xdiff*buffer);
-        ymax = ymax+Math.abs(ydiff*buffer);
+        let ydiff = ymax - ymin;
+        let xdiff = xmax - xmin;
+        xmin = xmin - Math.abs(xdiff * buffer);
+        ymin = ymin - Math.abs(ydiff * buffer);
+        xmax = xmax + Math.abs(xdiff * buffer);
+        ymax = ymax + Math.abs(ydiff * buffer);
         return {xmin, ymin, xmax, ymax};
     }
 
-    async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery){
+    async function queryJoinShapes(joinIndexName, joinValues, joinConfig, esClient, requestQuery) {
         let queryBody = {
             index: joinIndexName,
             body: {
@@ -434,23 +453,23 @@ module.exports = function(koop) {
             },
             size: 1000
         };
-        if(joinConfig.maxResults){
+        if (joinConfig.maxResults) {
             queryBody.size = joinConfig.maxResults;
         }
-        if(joinValues){
-            let valueTerms = { terms: {}};
+        if (joinValues) {
+            let valueTerms = {terms: {}};
             valueTerms.terms[joinConfig.joinField] = joinValues;
             queryBody.body.query.bool.must.push(valueTerms);
         }
 
         let geoFilter = buildGeoFilter(requestQuery, joinConfig);
-        if (geoFilter){
+        if (geoFilter) {
             queryBody.body.query.bool.filter = [];
             queryBody.body.query.bool.filter.push(geoFilter);
         }
 
         try {
-            logger.debug(JSON.stringify(queryBody, null,2));
+            logger.debug(JSON.stringify(queryBody, null, 2));
             let response = await esClient.search(queryBody);
             let shapeHits = response.hits.hits;
             return Promise.resolve(shapeHits);
@@ -459,33 +478,33 @@ module.exports = function(koop) {
         }
     }
 
-    function updateQueryWithJoinValues(queryBody, joinValues, indexConfig){
-        let valueTerms = { terms: {}};
+    function updateQueryWithJoinValues(queryBody, joinValues, indexConfig) {
+        let valueTerms = {terms: {}};
         valueTerms.terms[indexConfig.shapeIndex.joinField] = joinValues;
         queryBody.body.query.bool.must.push(valueTerms);
         return queryBody;
     }
 
-    function queryHexAggregations(indexConfig, aggServerConfig, query, callback){
+    function queryHexAggregations(indexConfig, aggServerConfig, query, callback) {
         queryAggregations(indexConfig, aggServerConfig, query, "geo_hex", (result) => {
             callback(result);
         });
     }
 
-    function queryGridAggregations(indexConfig, aggServerConfig, query, callback){
+    function queryGridAggregations(indexConfig, aggServerConfig, query, callback) {
         queryAggregations(indexConfig, aggServerConfig, query, "geo_grid", (result) => {
             callback(result);
         });
     }
 
-    function queryPolygonAggregations(indexConfig, aggServerConfig, query, aggField, callback){
+    function queryPolygonAggregations(indexConfig, aggServerConfig, query, aggField, callback) {
         queryAggregations(indexConfig, aggServerConfig, query, aggField, (result) => {
             callback(result);
         });
     }
 
     function queryAggregations(indexConfig, aggServerConfig, query, aggType, callback) {
-        var bbox = {xmin:-180, xmax:180, ymin:-90, ymax:90};
+        var bbox = {xmin: -180, xmax: 180, ymin: -90, ymax: 90};
         if (query.geometry) {
             bbox = JSON.parse(query.geometry);
             if (bbox.rings !== undefined) {
@@ -501,7 +520,7 @@ module.exports = function(koop) {
                 }
             }
         }
-        if(undefined !== bbox.spatialReference && bbox.spatialReference.wkid === 102100){
+        if (undefined !== bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
             var topLeft = proj.forward([bbox.xmin, bbox.ymax]);
             var bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
             bbox.xmin = topLeft[0];
@@ -520,7 +539,7 @@ module.exports = function(koop) {
                 'Content-Type': 'application/json'
             }
         };
-        if(undefined !== aggServerConfig.path){
+        if (undefined !== aggServerConfig.path) {
             options.path = aggServerConfig.path + options.path;
         }
         var resultJson = '';
@@ -555,13 +574,14 @@ module.exports = function(koop) {
         let customIndexNameBuilder = options.customIndexNameBuilder;
         var rawSearchKey = 'rawElasticQuery';
         let indexName = indexConfig.index;
-        if(indexConfig.hasOwnProperty("indexNameConfig")){
-            if(customIndexNameBuilder){
+        if (indexConfig.hasOwnProperty("indexNameConfig")) {
+            if (customIndexNameBuilder) {
                 indexName = customIndexNameBuilder(indexConfig, query);
             }
         }
         var esQuery = {
             index: indexName,
+            ignore_unavailable: true,
             body: {
                 query: {
                     bool: {
@@ -572,36 +592,32 @@ module.exports = function(koop) {
         };
 
         // add collapse
-        if(indexConfig.collapse){
+        if (indexConfig.collapse) {
             esQuery.body.collapse = indexConfig.collapse;
         }
 
         // add sorting
-        if(indexConfig.sort){
+        if (indexConfig.sort) {
             esQuery.body.sort = indexConfig.sort;
         }
 
-        if (indexConfig.geometryField && !indexConfig.isTable){
-            esQuery.body.query.bool.must.push({ exists: {field: indexConfig.geometryField} });
+        if (indexConfig.geometryField && !indexConfig.isTable) {
+            esQuery.body.query.bool.must.push({exists: {field: indexConfig.geometryField}});
         }
 
         // time aware data
-        if (query.time && indexConfig.timeInfo){
+        if (query.time && indexConfig.timeInfo) {
             let timeVals = query.time.split(',');
-            if (timeVals.length === 2){
+            if (timeVals.length === 2) {
                 let startTimeRange = {
-                    range: {
-
-                    }
+                    range: {}
                 };
                 startTimeRange.range[indexConfig.timeInfo.startTimeField] = {
                     gte: timeVals[0]
                 };
 
                 let endTimeRange = {
-                    range: {
-
-                    }
+                    range: {}
                 };
                 endTimeRange.range[indexConfig.timeInfo.endTimeField] = {
                     lte: timeVals[1]
@@ -617,25 +633,25 @@ module.exports = function(koop) {
             esQuery.body.size = maxRecords;
         }
 
-        if (query.where && query.where.indexOf(rawSearchKey)>-1) {
+        if (query.where && query.where.indexOf(rawSearchKey) > -1) {
             logger.debug("Original Where Clause: \n" + query.where);
             //get a substring after the search key, then get everything to the right of the first equal sign and left
             //of the next &.  This should be the raw elastic query object
             var elasticQueryString = query.where.slice(query.where.indexOf(rawSearchKey)).split(' AND')[0];
             var elasticQueryVal = elasticQueryString.split('=')[1];
-            if (elasticQueryVal[elasticQueryVal.length-1]===')') {
-                elasticQueryVal= elasticQueryVal.slice(0, elasticQueryVal.length-1);
+            if (elasticQueryVal[elasticQueryVal.length - 1] === ')') {
+                elasticQueryVal = elasticQueryVal.slice(0, elasticQueryVal.length - 1);
             }
             logger.debug("Extracted Raw Elastic Query: \n" + elasticQueryVal);
             esQuery.body.query = Object.assign(esQuery.body.query, JSON.parse(elasticQueryVal));
 
             //remove this part of the where clause
-            query.where = query.where.replace('('+elasticQueryString+ ' AND ', '');
+            query.where = query.where.replace('(' + elasticQueryString + ' AND ', '');
             query.where = query.where.replace(elasticQueryString, '');
 
             //check for redundant parens
-            if (query.where[0]==='(') {
-                query.where= query.where.substring(1, query.where.length-1);
+            if (query.where[0] === '(') {
+                query.where = query.where.substring(1, query.where.length - 1);
             }
             logger.debug("Remaining where clause: \n" + query.where);
         }
@@ -646,7 +662,7 @@ module.exports = function(koop) {
         }
 
         var whereParser = new WhereParser();
-        if(query.where || indexConfig.queryDefinition){
+        if (query.where || indexConfig.queryDefinition) {
 
             // server-side we can apply a query definition to simplify a layer's output via the queryDefinition index
             // config property. we append to any existing request where clause.
@@ -660,14 +676,14 @@ module.exports = function(koop) {
             }
 
             var boolClause = whereParser.parseWhereClause(finalQuery, indexConfig.dateFields, indexConfig.returnFields, indexConfig.mapReturnValues, mapping);
-            if(boolClause){
-                if(boolClause.bool ){
-                    if(indexConfig.geometryField && !indexConfig.isTable){
-                        if(boolClause.bool.must){
-                            boolClause.bool.must.push( { exists: {field: indexConfig.geometryField} });
+            if (boolClause) {
+                if (boolClause.bool) {
+                    if (indexConfig.geometryField && !indexConfig.isTable) {
+                        if (boolClause.bool.must) {
+                            boolClause.bool.must.push({exists: {field: indexConfig.geometryField}});
                         } else {
                             boolClause.bool.must = [
-                                { exists: {field: indexConfig.geometryField} }
+                                {exists: {field: indexConfig.geometryField}}
                             ];
                         }
                     }
@@ -679,10 +695,10 @@ module.exports = function(koop) {
 
         }
 
-        if (query.geometry && indexConfig.geometryField){ // don't bother if no geometry from the original index
+        if (query.geometry && indexConfig.geometryField) { // don't bother if no geometry from the original index
 
             let geoFilter = buildGeoFilter(query, indexConfig, aggregationBBox);
-            if (geoFilter){
+            if (geoFilter) {
                 if (!esQuery.body.query.bool.filter) {
                     esQuery.body.query.bool.filter = [];
                 }
@@ -690,11 +706,11 @@ module.exports = function(koop) {
             }
         }
 
-        if(query.sourceSearch && indexConfig.sourceSearchFields){
+        if (query.sourceSearch && indexConfig.sourceSearchFields) {
             // custom parameter was passed in asking us to look for a term in all fields
             var sourceSearchTerms = query.sourceSearch.split(',');
-            esQuery.body.query.bool.should=[];
-            for (var i=0; i<sourceSearchTerms.length; i++) {
+            esQuery.body.query.bool.should = [];
+            for (var i = 0; i < sourceSearchTerms.length; i++) {
                 esQuery.body.query.bool.should.push(
                     {
                         multi_match: {
@@ -705,7 +721,7 @@ module.exports = function(koop) {
                     }
                 );
             }
-            esQuery.body.query.bool.minimum_should_match =1;
+            esQuery.body.query.bool.minimum_should_match = 1;
         }
 
         // If it isn't a return count only request, then we can specify
@@ -735,14 +751,14 @@ module.exports = function(koop) {
 
     function buildGeoFilter(query, indexConfig, aggregationBBox = null) {
         let geoFilter;
-        if(query.distance){
+        if (query.distance) {
             geoFilter = {
                 geo_distance: {
                     distance: `${query.distance}${distanceConstants[query.units]}`
                 }
             };
-            if(query.geometry.spatialReference && query.geometry.spatialReference.wkid === 102100){
-                let reprojPoint= proj.forward([query.geometry.x, query.geometry.y]);
+            if (query.geometry.spatialReference && query.geometry.spatialReference.wkid === 102100) {
+                let reprojPoint = proj.forward([query.geometry.x, query.geometry.y]);
                 geoFilter.geo_distance[indexConfig.geometryField] = reprojPoint;
             } else {
                 geoFilter.geo_distance[indexConfig.geometryField] = [query.geometry.x, query.geometry.y];
@@ -812,41 +828,49 @@ module.exports = function(koop) {
         return geoFilter;
     }
 
-    function buildDefaultAggLayers(index, aggNames, mapping, returnFields) {
+    function buildDefaultAggLayers(indexConfig, mapping, customAggregations) {
+
+        let index = indexConfig.index;
+        let aggNames = indexConfig.aggregations.map(agg => agg.name)
+        let returnFields = indexConfig.returnFields;
         let aggLayerList = [];
 
-        aggNames.forEach( aggName => {
-            switch (aggName) {
-                case "hex":
-                    let hexCollection = {
-                        type: 'FeatureCollection',
-                        features: [{
-                            type: 'Feature',
-                            geometry: {
-                                "type": "Polygon",
-                                "coordinates": [
-                                    [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                        [100.0, 1.0], [100.0, 0.0]]
-                                ]
-                            },
-                            properties: {
-                                FEATURE_CNT: 0,
-                                AGGREGATION: "value"
-                            }
-                        }],
-                        metadata: {
-                            name: index + "_hex",
-                            maxRecordCount: 6000
-                        }
-                    };
-                    aggLayerList.push(hexCollection);
-                    break;
-                case "geohash":
-                    let hashCollection = {
+        aggNames.forEach(aggName => {
+            if (aggName == 'geohash') {
+
+                let hashCollection = {
+                    type: 'FeatureCollection',
+                    features: [],
+                    metadata: {
+                        name: index + "_geohash",
+                        maxRecordCount: 6000
+                    }
+                };
+                let defaultFeature = {
+                    type: 'Feature',
+                    geometry: {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
+                                [100.0, 1.0], [100.0, 0.0]]
+                        ]
+                    },
+                    properties: {
+                        FEATURE_CNT: 0,
+                        AGGREGATION: "value"
+                    }
+                };
+                hashCollection.features = [addDefaultReturnFields(defaultFeature, mapping, returnFields)];
+
+                aggLayerList.push(hashCollection);
+            } else {
+                let customAggregation = customAggregations.find(customAgg => customAgg.name === aggName);
+                if (customAggregation) {
+                    let aggCollection = {
                         type: 'FeatureCollection',
                         features: [],
                         metadata: {
-                            name: index + "_geohash",
+                            name: `${index}_${aggName}`,
                             maxRecordCount: 6000
                         }
                     };
@@ -859,81 +883,31 @@ module.exports = function(koop) {
                                     [100.0, 1.0], [100.0, 0.0]]
                             ]
                         },
-                        properties: {
-                            FEATURE_CNT: 0,
-                            AGGREGATION: "value"
-                        }
+                        properties: customAggregation.defaultReturnFields(mapping, indexConfig)
                     };
-                    hashCollection.features = [addDefaultReturnFields(defaultFeature, mapping, returnFields)];
+                    aggCollection.features = [defaultFeature];
 
-                    aggLayerList.push(hashCollection);
-                    break;
-                case "geogrid":
-                    let gridCollection = {
-                        type: 'FeatureCollection',
-                        features: [{
-                            type: 'Feature',
-                            geometry: {
-                                "type": "Polygon",
-                                "coordinates": [
-                                    [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                        [100.0, 1.0], [100.0, 0.0]]
-                                ]
-                            },
-                            properties: {
-                                FEATURE_CNT: 0,
-                                AGGREGATION: "value"
-                            }
-                        }],
-                        metadata: {
-                            name: index + "_geogrid",
-                            maxRecordCount: 600
-                        }
-                    };
-                    aggLayerList.push(gridCollection);
-                    break;
-                default:
-                    let polyCollection = {
-                        type: 'FeatureCollection',
-                        features: [{
-                            type: 'Feature',
-                            geometry: {
-                                "type": "Polygon",
-                                "coordinates": [
-                                    [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                        [100.0, 1.0], [100.0, 0.0]]
-                                ]
-                            },
-                            properties: {
-                                FEATURE_CNT: 0,
-                                AGGREGATION: "value"
-                            }
-                        }],
-                        metadata: {
-                            name: index + aggName,
-                            maxRecordCount: 6000
-                        }
-                    };
-                    aggLayerList.push(polyCollection);
-                    break;
+                    aggLayerList.push(aggCollection);
+                }
+
             }
         });
 
         return aggLayerList;
     }
 
-    function addDefaultReturnFields(feature, mapping, returnFields){
-        for(let i=0; i<returnFields.length; i++){
+    function addDefaultReturnFields(feature, mapping, returnFields) {
+        for (let i = 0; i < returnFields.length; i++) {
             let fieldPath = returnFields[i].split('.');
 
             let mappingField = mapping[fieldPath[0]];
-            for(let pathIndex=1; pathIndex<fieldPath.length; pathIndex++){
-                if(mappingField.properties){
+            for (let pathIndex = 1; pathIndex < fieldPath.length; pathIndex++) {
+                if (mappingField.properties) {
                     mappingField = mappingField.properties;
                 }
                 mappingField = mappingField[fieldPath[pathIndex]];
             }
-            switch(mappingField.type){
+            switch (mappingField.type) {
                 case "integer":
                     feature.properties[returnFields[i]] = 0;
                     break;
@@ -951,18 +925,18 @@ module.exports = function(koop) {
 
     function validateBounds(geometry) {
         let bbox = geometry;
-        if(bbox.ymax !== undefined){
-            if(bbox.xmax == null && bbox.xmin == null){
+        if (bbox.ymax !== undefined) {
+            if (bbox.xmax == null && bbox.xmin == null) {
                 return false;
             }
         }
 
-        if(bbox.rings !== undefined){
+        if (bbox.rings !== undefined) {
             bbox.xmin = 180.0;
             bbox.xmax = -180.0;
             bbox.ymax = -90.0;
             bbox.ymin = 90.0;
-            for(var ringIdx=0; ringIdx < bbox.rings[0].length; ringIdx++){
+            for (var ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
                 bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
                 bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
                 bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
@@ -973,14 +947,14 @@ module.exports = function(koop) {
         let topLeft = [bbox.xmin, bbox.ymax];
         let bottomRight = [bbox.xmax, bbox.ymin];
 
-        if(typeof bbox === 'string'){
+        if (typeof bbox === 'string') {
             // arcmap
             bbox = bbox.split(',');
             topLeft = [Number(bbox[0]), Number(bbox[3])];
             bottomRight = [Number(bbox[2]), Number(bbox[1])];
         }
 
-        if(bbox.spatialReference && bbox.spatialReference.wkid === 102100){
+        if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
             topLeft = proj.forward([bbox.xmin, bbox.ymax]);
             bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
         }

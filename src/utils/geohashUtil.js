@@ -61,7 +61,7 @@ class GeohashUtil{
     _isHashInBounds(hash) {
         let latlon = geohash.decode(hash);
         return (this.bbox.ymin <= latlon.latitude && this.bbox.ymax >= latlon.latitude &&
-        this.bbox.xmin <= latlon.longitude && this.bbox.xmax >= latlon.longitude);
+            this.bbox.xmin <= latlon.longitude && this.bbox.xmax >= latlon.longitude);
     }
 
     _calculateGeohashPrecision() {
