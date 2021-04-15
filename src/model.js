@@ -581,6 +581,7 @@ module.exports = function (koop) {
         }
         var esQuery = {
             index: indexName,
+            ignore_unavailable: true,
             body: {
                 query: {
                     bool: {
