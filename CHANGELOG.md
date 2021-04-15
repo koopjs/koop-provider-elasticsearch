@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unpublished
+## [2.5.0] - 04-15-2021
 ### Added
 * Support to allow for registering custom aggregations
 * Support to specify which sub-layer to display for vector tiles in JSON config
@@ -44,6 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[2.5.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.1...v2.2.2
