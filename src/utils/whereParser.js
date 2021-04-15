@@ -38,29 +38,29 @@ class WhereParser {
 
     _isEmpty(map) {
         for(let key in map) {
-          if (map.hasOwnProperty(key)) {
-             return false;
-          }
+            if (map.hasOwnProperty(key)) {
+                return false;
+            }
         }
         return true;
-     }
+    }
 
-     _mapValue(column, value, letiant) {
-         // This method maps back the values we aliased if that is configured for the index.
+    _mapValue(column, value, variant) {
+        // This method maps back the values we aliased if that is configured for the index.
 
-         if (!this.reverseMappedReturnValues) {
-             if(letiant === "decimal"){
-                 value = Number(value);
-             }
-             return value;
-         } else {
+        if (!this.reverseMappedReturnValues) {
+            if(variant === "decimal"){
+                value = Number(value);
+            }
+            return value;
+        } else {
             if (Array.isArray(value)) {
                 // handle a whole array of value mappings
                 return value.map(x => {
                     let mappedArray = this.reverseMappedReturnValues[column];
                     if (mappedArray) {
                         let mappedArrayVal = mappedArray[x];
-                        return mappedArrayVal ? mappedArrayVal : x; 
+                        return mappedArrayVal ? mappedArrayVal : x;
                     } else {
                         // case where this column isn't mapped
                         return x;
@@ -76,10 +76,10 @@ class WhereParser {
                     // case where this column isn't mapped
                     return value;
                 }
-                
+
             }
-         }
-     }
+        }
+    }
 
     // This constructs the reverse mapping for each indexConfig's mapReturnValues mapping
     _setReverseMappingValues(mapReturnValues) {
@@ -105,7 +105,7 @@ class WhereParser {
                     returnItem.terms[trueColname] = [rightItem.value, rightItem.value];
                 } else {
                     returnItem.match = {};
-                    returnItem.match[trueColname] = this._mapValue(trueColname, rightItem.value, rightItem.letiant);
+                    returnItem.match[trueColname] = this._mapValue(trueColname, rightItem.value, rightItem.variant);
                 }
             } else if(operation === 'not like'){
                 returnItem = {bool:{ must_not: [{match_phrase_prefix:{}}]}};
@@ -189,8 +189,7 @@ class WhereParser {
                     if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
                         rangeItem.range[this._trueFieldName(leftItem.name)] = {
                             gte: rightItem.left.value,
-                            lte: rightItem.right.value,
-                            format: "strict_date_optional_time||epoch_millis"
+                            lte: rightItem.right.value
                         };
                     } else {
                         // we're assuming moment will be able to parse this format
@@ -218,14 +217,14 @@ class WhereParser {
                     }
                 }
 
-            } else if(leftItem.letiant === "column" && operation === "in" && rightItem.letiant === "list") {
+            } else if(leftItem.variant === "column" && operation === "in" && rightItem.variant === "list") {
                 // This case is for queries of the form OBJECT IN ('Objectid1', 'Objectid2', etc).
                 // We should refactor this branch so we specifically use an ids query (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html)
                 // when the column is the objectid or _id column. This approach works though for both regular and objectid/_id values
                 // in the meantime as being part of the MUST terms query
 
                 if (!returnItem.terms) {
-                     returnItem.terms = {};
+                    returnItem.terms = {};
                 }
 
                 let trueColName = this._trueFieldName(leftItem.name, true);
@@ -233,7 +232,16 @@ class WhereParser {
                 // for each entry of the list on the right (i.e. "in (value,value)"), use it's value property as it's entry
                 // for the final array of items to search for as terms
                 //returnItem.terms[this._trueFieldName(leftItem.name, true)] = rightItem.expression.map(x => x.value);
-                let termValues = rightItem.expression.map(x => x.value);
+                let termValues = rightItem.expression.map(x => {
+                    if(x.value){
+                        return x.value;
+                    }
+                    if(x.operator === '-'){
+                        // deal with negative numbers
+                        return Number(`${x.operator}${x.expression.value}`);
+                    }
+                    return '';
+                });
                 if (!this._isEmpty(returnItem.terms[trueColName])) {
                     // If match values already exist for this match, append additional values
                     returnItem.terms[trueColName] = returnItem.terms[trueColName].concat(termValues);
@@ -242,6 +250,11 @@ class WhereParser {
                     returnItem.terms[trueColName] = this._mapValue(trueColName, termValues);
                 }
 
+                return returnItem;
+            } else if (leftItem.type === "identifier" && operation === "=" && rightItem.operator === '-'){
+                // This is the case for a negative value being passed in.
+                returnItem.terms = {};
+                returnItem.terms[this._trueFieldName(leftItem.name)] = [Number(`${rightItem.operator}${rightItem.expression.value}`)];
                 return returnItem;
             } else {
                 return this._processItem(leftItem, rightItem.left, rightItem.operation);
