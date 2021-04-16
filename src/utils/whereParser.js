@@ -94,6 +94,14 @@ class WhereParser {
         }
     }
 
+    _parseNegativeValue(item){
+        // check for negative value
+        if(item.operator === '-'){
+            return `-${item.expression.value}`;
+        }
+        return undefined;
+    }
+
     _processItem(leftItem, rightItem, operation){
 
         let returnItem = {};
@@ -187,9 +195,17 @@ class WhereParser {
                         }
                     };
                     if(!this.dateFields.includes(this._trueFieldName(leftItem.name))){
+                        let leftValue = rightItem.left.value;
+                        let rightValue = rightItem.right.value;
+                        if(leftValue === undefined){
+                            leftValue = this._parseNegativeValue(rightItem.left);
+                        }
+                        if(rightValue === undefined){
+                            rightValue = this._parseNegativeValue(rightItem.right);
+                        }
                         rangeItem.range[this._trueFieldName(leftItem.name)] = {
-                            gte: rightItem.left.value,
-                            lte: rightItem.right.value
+                            gte: leftValue,
+                            lte: rightValue
                         };
                     } else {
                         // we're assuming moment will be able to parse this format
@@ -238,7 +254,8 @@ class WhereParser {
                     }
                     if(x.operator === '-'){
                         // deal with negative numbers
-                        return Number(`${x.operator}${x.expression.value}`);
+
+                        return Number(this._parseNegativeValue(x));
                     }
                     return '';
                 });
