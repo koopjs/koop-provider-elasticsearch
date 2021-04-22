@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Fixed
 * Support for negative numbers in where clause is more robust
+* Handle geo hash using non-standard shape field names
 ### Changed
 * Now passing in all query parameters to custom aggregation layers
 
