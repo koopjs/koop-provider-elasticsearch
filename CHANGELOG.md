@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## Unreleased
+## [2.5.1] - 04-27-2021
 ### Fixed
 * Support for negative numbers in where clause is more robust
 * Handle geo hash using non-standard shape field names
@@ -52,6 +52,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[2.5.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.2.2...v2.3.0
