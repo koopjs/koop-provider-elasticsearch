@@ -62,7 +62,7 @@ The following is a sample configuration file showing most capabilities
           ],
           "idField": "OBJECTID",
           "aggregations": [
-            "geohash"
+            {"name": "geohash"}
           ],
           "maxResults": 1000
         },

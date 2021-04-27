@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+
+## Unreleased
+### Fixed
+* Support for negative numbers in where clause is more robust
+* Handle geo hash using non-standard shape field names
+### Changed
+* Now passing in all query parameters to custom aggregation layers
+
 ## [2.5.0] - 04-15-2021
 ### Added
 * Support to allow for registering custom aggregations

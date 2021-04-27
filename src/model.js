@@ -277,7 +277,7 @@ module.exports = function (koop) {
 
                 let returnObject = {layers: [featureCollection]};
                 if (indexConfig.aggregations && indexConfig.aggregations.length && undefined === layerId) {
-                    const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations);
+                    const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations, query);
                     returnObject.layers = returnObject.layers.concat(aggLayers);
 
                     callback(null, returnObject);
@@ -343,7 +343,7 @@ module.exports = function (koop) {
                         });
                         featureCollection = customAggregation.getAggregationFeatures({
                             indexConfig, mapping, query: esQuery, esClient: this.esClients[esId], featureCollection,
-                            offset: req.query.maxAllowableOffset
+                            queryParameters: req.query
                         }).then(aggregatedFeatureCollection => {
                             callback(null, aggregatedFeatureCollection);
                         }).catch(error => {
@@ -828,7 +828,7 @@ module.exports = function (koop) {
         return geoFilter;
     }
 
-    function buildDefaultAggLayers(indexConfig, mapping, customAggregations) {
+    function buildDefaultAggLayers(indexConfig, mapping, customAggregations, query) {
 
         let index = indexConfig.index;
         let aggNames = indexConfig.aggregations.map(agg => agg.name)
@@ -883,7 +883,7 @@ module.exports = function (koop) {
                                     [100.0, 1.0], [100.0, 0.0]]
                             ]
                         },
-                        properties: customAggregation.defaultReturnFields(mapping, indexConfig)
+                        properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                     };
                     aggCollection.features = [defaultFeature];
 

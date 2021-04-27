@@ -265,7 +265,8 @@ class HitConverter{
         let filter = boolQuery.filter;
         if(filter){
             filter = filter[0];
-            let filterBBox = filter.geo_bounding_box.shape;
+            let bboxKey = Object.keys(filter.geo_bounding_box)[0];
+            let filterBBox = filter.geo_bounding_box[bboxKey];
             // compare filter to bbox [ymin,xmin,ymax,xmax]
             if(filterBBox.bottom_right[1] >= bbox[2] ||
                 filterBBox.top_left[1] <= bbox[0] ||
