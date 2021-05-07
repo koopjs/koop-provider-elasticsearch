@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## UNRELEASED
+### Fixed
+* Now handle negative numbers in a more consistent manner
 
 ## [2.5.1] - 04-27-2021
 ### Fixed
