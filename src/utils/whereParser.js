@@ -102,9 +102,20 @@ class WhereParser {
         return undefined;
     }
 
+    _updateNegativeItem(item){
+        if(item.operator === '-' && item.expression && item.expression.value !== undefined){
+            item.type = 'literal';
+            item.value = Number(this._parseNegativeValue(item));
+        }
+        return item;
+    }
+
     _processItem(leftItem, rightItem, operation){
 
         let returnItem = {};
+
+        rightItem = this._updateNegativeItem(rightItem);
+
         if(leftItem.type === 'identifier' && rightItem.type === 'literal'){
             if(operation === '='){
                 let trueColname = this._trueFieldName(leftItem.name, true);
@@ -267,11 +278,6 @@ class WhereParser {
                     returnItem.terms[trueColName] = this._mapValue(trueColName, termValues);
                 }
 
-                return returnItem;
-            } else if (leftItem.type === "identifier" && operation === "=" && rightItem.operator === '-'){
-                // This is the case for a negative value being passed in.
-                returnItem.terms = {};
-                returnItem.terms[this._trueFieldName(leftItem.name)] = [Number(`${rightItem.operator}${rightItem.expression.value}`)];
                 return returnItem;
             } else {
                 return this._processItem(leftItem, rightItem.left, rightItem.operation);
