@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## UNRELEASED
 ### Fixed
 * Now handle negative numbers in a more consistent manner
+### Changed
+* Allow configurable minimum offset for vector tile layers
+* Allow returnFields to be passed in via query object
+* Allow aggregations to specify geometryType, defaults to Polygon
 
 ## [2.5.1] - 04-27-2021
 ### Fixed
