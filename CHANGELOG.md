@@ -2,13 +2,6 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [2.5.2] - 06-04-2021
-### Fixed
-* Now handle negative numbers in a more consistent manner
-### Changed
-* Allow configurable minimum offset for vector tile layers
-* Allow returnFields to be passed in via query object
-* Allow aggregations to specify geometryType, defaults to Polygon
 
 ## [2.5.1] - 04-27-2021
 ### Fixed
@@ -59,7 +52,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
-[2.5.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.3.0...v2.4.0
