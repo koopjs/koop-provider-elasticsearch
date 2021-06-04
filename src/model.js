@@ -23,13 +23,14 @@ module.exports = function (koop) {
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
     };
 
-    this.getTileOffset = function (z) {
+    this.getTileOffset = function (z, minimumOffset= 4.864) {
         // Emulate the offset that would come from a feature service request with a minimum of 4.864
         // Level 22 has 0.019 meters per pixel and this increases by a factor of 2 as the tile level goes down
-        return Math.max(4.864, 0.019 * Math.pow(2, 22 - parseInt(z)));
+        return Math.max(minimumOffset, 0.019 * Math.pow(2, 22 - parseInt(z)));
     }
 
     this.getData = async function (req, callback) {
+        // let startMillis = Date.now().valueOf();
         if (!this.esClients) {
             this.esClients = ElasticConnectUtil.initializeESClients();
             this.esConfig = null;
@@ -40,6 +41,7 @@ module.exports = function (koop) {
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
+        indexConfig.returnFields = req.query.returnFields || indexConfig.returnFields;
         let extent = indexConfig.extent;
         let customSymbolizer = this.getCustomSymbolizer(indexConfig);
 
@@ -62,7 +64,7 @@ module.exports = function (koop) {
             if (req.params.x && req.params.y && req.params.z) {
                 const tileBBox = getTileBBox(req, customSymbolizer);
                 req.query.geometry = tileBBox;
-                req.query.maxAllowableOffset = this.getTileOffset(req.params.z);
+                req.query.maxAllowableOffset = this.getTileOffset(req.params.z, indexConfig.vectorLayerMinimumOffset);
                 //TODO: Investigate using the bbox extent (must be in web mercator)
                 extent = undefined;
             }
@@ -189,7 +191,12 @@ module.exports = function (koop) {
                     esQuery = updateQueryWithJoinValues(esQuery, joinValues, indexConfig);
                 }
                 // logger.debug(esQuery);
+                // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
+                // let startESQueryMillis = Date.now().valueOf();
+                // console.log(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.esClients[esId].search(esQuery);
+                // logger.debug(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
+                // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
 
@@ -209,8 +216,8 @@ module.exports = function (koop) {
                     }
 
                 }
-
-                logger.debug(`Total parsed features: ${featureCollection.features.length}`);
+                // logger.debug(`Parsed Features ${featureCollection.features.length} In: ${(Date.now().valueOf() - startParseMillis)/1000} seconds`);
+                // logger.debug(`Total parsed features: ${featureCollection.features.length}`);
                 //logger.debug("Counts were from query: " + JSON.stringify(esQuery.body.query));
 
                 // if an result offset is specified use it, otherwise the offset is 0
@@ -279,9 +286,10 @@ module.exports = function (koop) {
                 if (indexConfig.aggregations && indexConfig.aggregations.length && undefined === layerId) {
                     const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations, query);
                     returnObject.layers = returnObject.layers.concat(aggLayers);
-
+                    // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                     callback(null, returnObject);
                 } else {
+                    // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                     callback(null, featureCollection);
                 }
             } catch (error) {
@@ -319,6 +327,7 @@ module.exports = function (koop) {
                         };
                         featureCollection.filtersApplied = {where: true};
                         featureCollection.filtersApplied.geometry = true;
+                        // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                         callback(null, featureCollection);
                     }).catch(error => {
                         logger.error(error);
@@ -345,6 +354,7 @@ module.exports = function (koop) {
                             indexConfig, mapping, query: esQuery, esClient: this.esClients[esId], featureCollection,
                             queryParameters: req.query
                         }).then(aggregatedFeatureCollection => {
+                            // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                             callback(null, aggregatedFeatureCollection);
                         }).catch(error => {
                             logger.error(error);
@@ -866,6 +876,7 @@ module.exports = function (koop) {
             } else {
                 let customAggregation = customAggregations.find(customAgg => customAgg.name === aggName);
                 if (customAggregation) {
+                    let aggConfig = indexConfig.aggregations.find(aggConfig => aggConfig.name === aggName);
                     let aggCollection = {
                         type: 'FeatureCollection',
                         features: [],
@@ -877,7 +888,7 @@ module.exports = function (koop) {
                     let defaultFeature = {
                         type: 'Feature',
                         geometry: {
-                            "type": "Polygon",
+                            "type": aggConfig.geometryType || "Polygon",
                             "coordinates": [
                                 [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
                                     [100.0, 1.0], [100.0, 0.0]]
@@ -885,6 +896,9 @@ module.exports = function (koop) {
                         },
                         properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                     };
+                    if(defaultFeature.geometry.type === "Point"){
+                        defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
+                    }
                     aggCollection.features = [defaultFeature];
 
                     aggLayerList.push(aggCollection);
