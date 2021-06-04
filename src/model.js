@@ -859,7 +859,7 @@ module.exports = function (koop) {
                 let defaultFeature = {
                     type: 'Feature',
                     geometry: {
-                        "type": indexConfig.aggregations[aggName].geometryType || "Polygon",
+                        "type": "Polygon",
                         "coordinates": [
                             [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
                                 [100.0, 1.0], [100.0, 0.0]]
@@ -876,6 +876,7 @@ module.exports = function (koop) {
             } else {
                 let customAggregation = customAggregations.find(customAgg => customAgg.name === aggName);
                 if (customAggregation) {
+                    let aggConfig = indexConfig.aggregations.find(aggConfig => aggConfig.name === aggName);
                     let aggCollection = {
                         type: 'FeatureCollection',
                         features: [],
@@ -887,7 +888,7 @@ module.exports = function (koop) {
                     let defaultFeature = {
                         type: 'Feature',
                         geometry: {
-                            "type": "Polygon",
+                            "type": aggConfig.geometryType || "Polygon",
                             "coordinates": [
                                 [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
                                     [100.0, 1.0], [100.0, 0.0]]
@@ -895,6 +896,9 @@ module.exports = function (koop) {
                         },
                         properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                     };
+                    if(defaultFeature.geometry.type === "Point"){
+                        defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
+                    }
                     aggCollection.features = [defaultFeature];
 
                     aggLayerList.push(aggCollection);
