@@ -13,6 +13,7 @@
   "author": "Danny Hatcher",
   "license": "Apache-2.0",
   "dependencies": {
+    "@elastic/elasticsearch": "^7.13.0",
     "@koopjs/logger": "^2.0.6",
     "@mapbox/geojson-rewind": "^0.5.0",
     "elasticsearch": "14.0.0",

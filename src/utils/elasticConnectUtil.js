@@ -1,5 +1,5 @@
 const appConfig = require('config');
-const elasticsearch = require('elasticsearch');
+const {Client} = require('@elastic/elasticsearch');
 
 function initializeESClients() {
     let esClients = {};
@@ -47,16 +47,16 @@ function initializeESClients() {
             esCert = fs.readFileSync(esCert);
         }
 
-        let esClient = new elasticsearch.Client({
-            hosts: hosts,
-            log: 'error',
+        let esClient = new Client({
+            node: hosts,
             requestTimeout: 900000,
             keepAlive: false,
             ssl: {
                 key: esKey,
                 cert: esCert,
                 pfx: pfx,
-                passphrase: passphrase
+                passphrase: passphrase,
+                rejectUnauthorized: false
             }
         });
         esClients[connectInfo.id] = esClient;

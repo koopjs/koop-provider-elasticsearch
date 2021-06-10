@@ -23,7 +23,7 @@ module.exports = function (koop) {
         featureCollection.metadata.timeInfo.timeExtent = [this.startFieldStats.min, this.endFieldStats.max];
     };
 
-    this.getTileOffset = function (z, minimumOffset= 4.864) {
+    this.getTileOffset = function (z, minimumOffset = 4.864) {
         // Emulate the offset that would come from a feature service request with a minimum of 4.864
         // Level 22 has 0.019 meters per pixel and this increases by a factor of 2 as the tile level goes down
         return Math.max(minimumOffset, 0.019 * Math.pow(2, 22 - parseInt(z)));
@@ -151,7 +151,7 @@ module.exports = function (koop) {
                     });
                     this.esClients[esId].count(countQuery).then(function (resp) {
                         logger.debug("count resp:", resp);
-                        featureCollection.count = resp.count;
+                        featureCollection.count = resp.body.count;
                         callback(null, featureCollection);
                     }, function (err) {
                         logger.error(err.message);
@@ -195,6 +195,7 @@ module.exports = function (koop) {
                 // let startESQueryMillis = Date.now().valueOf();
                 // console.log(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.esClients[esId].search(esQuery);
+                searchResponse = searchResponse.body;
                 // logger.debug(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
@@ -391,37 +392,34 @@ module.exports = function (koop) {
     }
 
 
-    function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient) {
-        return new Promise((resolve, reject) => {
-            // just aggs, no need to get documents back
-            esQuery.body.size = 1;
-
-            esQuery.body.aggregations = {
-                agg_grid: {
-                    geohash_grid: {
-                        field: indexConfig.geometryField,
-                        precision: geohashUtil.precision
-                    }
+    async function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient) {
+        // just aggs, no need to get documents back
+        esQuery.body.size = 1;
+        esQuery.body.aggregations = {
+            agg_grid: {
+                geohash_grid: {
+                    field: indexConfig.geometryField,
+                    precision: geohashUtil.precision
                 }
-            };
-
-            esClient.search(esQuery).then(response => {
-                let geohashFeatures = [];
-                let hitConverter = new HitConverter();
-                for (let i = 0; i < response.aggregations.agg_grid.buckets.length; i++) {
-                    let feature = hitConverter.featureFromGeoHashBucket(response.aggregations.agg_grid.buckets[i],
-                        response.hits.hits[0], indexConfig, mapping, esQuery.body.query.bool);
-                    if (feature) {
-                        geohashFeatures.push(feature);
-                    }
+            }
+        };
+        try {
+            let result = await esClient.search(esQuery);
+            let response = result.body;
+            let geohashFeatures = [];
+            let hitConverter = new HitConverter();
+            for (let i = 0; i < response.aggregations.agg_grid.buckets.length; i++) {
+                let feature = hitConverter.featureFromGeoHashBucket(response.aggregations.agg_grid.buckets[i],
+                    response.hits.hits[0], indexConfig, mapping, esQuery.body.query.bool);
+                if (feature) {
+                    geohashFeatures.push(feature);
                 }
-                resolve(geohashFeatures);
-            }).catch(error => {
-                logger.error(error);
-                reject(error);
-            })
-
-        });
+            }
+            return Promise.resolve(geohashFeatures);
+        } catch (e) {
+            logger.error(e);
+            return Promise.reject(e);
+        }
     }
 
     function tile2long(x, z) {
@@ -481,7 +479,7 @@ module.exports = function (koop) {
         try {
             logger.debug(JSON.stringify(queryBody, null, 2));
             let response = await esClient.search(queryBody);
-            let shapeHits = response.hits.hits;
+            let shapeHits = response.body.hits.hits;
             return Promise.resolve(shapeHits);
         } catch (e) {
             return Promise.reject(e);
@@ -896,7 +894,7 @@ module.exports = function (koop) {
                         },
                         properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                     };
-                    if(defaultFeature.geometry.type === "Point"){
+                    if (defaultFeature.geometry.type === "Point") {
                         defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
                     }
                     aggCollection.features = [defaultFeature];
