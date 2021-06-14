@@ -30,7 +30,7 @@ class HitConverter{
             type: 'Feature',
             properties: {}
         };
-        hit._source = flatten(hit._source, {safe:true});
+        hit._source = flatten(hit._source, {safe:false});
 
         if(!indexConfig.shapeIndex){
             if(!indexConfig.isTable){
