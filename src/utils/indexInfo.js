@@ -20,10 +20,10 @@ class IndexInfo{
                         this.mappings[esName] = {};
                     }
                     if(type !== undefined){
-                        this.mappings[esName][indexName] = result[Object.keys(result)[0]].mappings[type];
+                        this.mappings[esName][indexName] = result.body[Object.keys(result.body)[0]].mappings[type];
                         resolve(this.mappings[esName][indexName]);
                     } else {
-                        const mappings = result[Object.keys(result)[0]].mappings;
+                        const mappings = result.body[Object.keys(result.body)[0]].mappings;
                         this.mappings[esName][indexName] = mappings.properties;
                             resolve(this.mappings[esName][indexName]);
                     }
