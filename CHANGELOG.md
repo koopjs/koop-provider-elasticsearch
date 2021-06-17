@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Changed
+* Moved to the new @elastic/elasticsearch library
+
 ## [2.5.2] - 06-04-2021
 ### Fixed
 * Now handle negative numbers in a more consistent manner
