@@ -1,68 +1,16 @@
+
 {
-  "koopOutputVectorTiles": {
-    "cache": false
-  },
-  "appInfo": {
-    "version": "@@@version",
-    "buildDate": "@@@buildDate",
-    "protocol": "https",
-    "listenPort": 443
-  },
-  "logToFile": false,
-  "logLevel": "info",
   "esConnections": {
-    "dhatcher1": {
-      "id": "dhatcher1",
+    "local": {
+      "id": "local",
       "protocol": "http://",
-      "userName": "",
-      "password": "",
       "port": 9200,
       "hosts": [
-        "dhatcher1.esri.com"
+        "localhost"
       ],
+      "shapeIndices": {
+      },
       "indices": {
-        "cellsite": {
-          "index": "cellsite",
-          "allowMultiPoint": true,
-          "vectorLayerMinimumOffset": 0,
-          "geometryField": "shape",
-          "geometryType": "geo_point",
-          "returnFields": [
-            "azimuth",
-            "beam_width",
-            "color_code"
-          ],
-          "dateFields": [],
-          "aggregations": [],
-          "maxResults": 1000,
-          "searchFields": [],
-          "customSymbolizer": "ArcSymbolizer"
-        },
-        "pointsample": {
-          "index": "pointsample",
-          "allowMultiPoint": false,
-          "geometryField": "location",
-          "geometryType": "geo_point",
-          "returnFields": [
-            "num"
-          ],
-          "dateFields": [],
-          "aggregations": [],
-          "maxResults": 1000
-        },
-        "drivedata": {
-          "index": "drivedata",
-          "allowMultiPoint": false,
-          "geometryField": "loc",
-          "geometryType": "geo_point",
-          "returnFields": [
-            "TimeStamp",
-            "LTEPccRsrqRx0"
-          ],
-          "dateFields": ["TimeStamp"],
-          "aggregations": [],
-          "maxResults": 1000
-        }
       }
     }
   }
