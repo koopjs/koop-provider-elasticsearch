@@ -22,9 +22,11 @@ To suppress KoopJS warnings from the console output, run with an environment var
 ## Command Line
 `npm start`
 
-### Geohash aggregation
-If you use an ElasticSearch Index with a geo_point shape field you can enable geo hash aggregation.  This will show up 
-as a separate sub-layer in the feature service.
+### Sub-Layers
+By default, all services only have a single layer, as defined in the index configuration. It is possible to configure
+one or more sub-layers in the subLayers section of the configuration. Each of these sub layers can be a predefined
+sub layer or you can create your own.
+
 
 #### Basic Config File Structure
 The following is a sample configuration file showing most capabilities
@@ -61,7 +63,7 @@ The following is a sample configuration file showing most capabilities
             "createdAt"
           ],
           "idField": "OBJECTID",
-          "aggregations": [
+          "subLayers": [
             {"name": "geohash"}
           ],
           "maxResults": 1000

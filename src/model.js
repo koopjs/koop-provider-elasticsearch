@@ -13,10 +13,12 @@ const logger = new Logger(config);
 const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
+const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
+const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
 
 module.exports = function (koop) {
     this.customSymbolizers = [];
-    this.customAggregations = [];
+    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation()];
     this.customIndexNameBuilder = undefined;
 
     this.setTimeExtent = function (featureCollection) {
@@ -36,8 +38,11 @@ module.exports = function (koop) {
             this.esConfig = null;
             this.indexInfo = new IndexInfo(this.esClients);
         }
-        const serviceName = req.params.id;
         const esId = req.params.host;
+        this.client = this.esClients[esId].child();
+
+        const serviceName = req.params.id;
+
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
@@ -149,7 +154,7 @@ module.exports = function (koop) {
                         mapping,
                         customIndexNameBuilder: this.customIndexNameBuilder
                     });
-                    this.esClients[esId].count(countQuery).then(function (resp) {
+                    this.client.count(countQuery).then(function (resp) {
                         logger.debug("count resp:", resp);
                         featureCollection.count = resp.body.count;
                         callback(null, featureCollection);
@@ -173,7 +178,7 @@ module.exports = function (koop) {
 
                 if (useJoinShapes) {
                     let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
-                    joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.esClients[esId], query);
+                    joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.client, query);
                     hitConverter.setJoinShapes(joinShapeHits, joinConfig);
 
                     let joinValues = joinShapeHits.map(hit => {
@@ -194,7 +199,7 @@ module.exports = function (koop) {
                 // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                 // let startESQueryMillis = Date.now().valueOf();
                 // console.log(JSON.stringify(esQuery, null, 2));
-                let searchResponse = await this.esClients[esId].search(esQuery);
+                let searchResponse = await this.client.search(esQuery);
                 searchResponse = searchResponse.body;
                 // logger.debug(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
@@ -284,8 +289,8 @@ module.exports = function (koop) {
                 }
 
                 let returnObject = {layers: [featureCollection]};
-                if (indexConfig.aggregations && indexConfig.aggregations.length && undefined === layerId) {
-                    const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations, query);
+                if (indexConfig.subLayers && indexConfig.subLayers.length && undefined === layerId) {
+                    const aggLayers = buildDefaultSubLayers(indexConfig, mapping, this.customSubLayers, query);
                     returnObject.layers = returnObject.layers.concat(aggLayers);
                     // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                     callback(null, returnObject);
@@ -300,9 +305,9 @@ module.exports = function (koop) {
             // Handle getMapping promise rejections so browser gets an error response instead of hanging
 
 
-        } else if (indexConfig.aggregations && indexConfig.aggregations.length >= parseInt(layerId)) {
-            const aggType = indexConfig.aggregations[parseInt(layerId) - 1];
-            if (aggType.name == 'geohash') {
+        } else if (indexConfig.subLayers && indexConfig.subLayers.length >= parseInt(layerId)) {
+            const aggType = indexConfig.subLayers[parseInt(layerId) - 1];
+            if (false) {
                 this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
 
                     let maxRecords = query.resultRecordCount;
@@ -320,7 +325,7 @@ module.exports = function (koop) {
                         customIndexNameBuilder: this.customIndexNameBuilder
                     });
 
-                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.esClients[esId]).then(result => {
+                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.client).then(result => {
                         featureCollection.features = result;
                         featureCollection.metadata = {
                             name: indexConfig.index + "_geohash",
@@ -341,9 +346,9 @@ module.exports = function (koop) {
                     callback(error, featureCollection);
                 });
             } else {
-                let customAggregation = this.customAggregations.find(agg => agg.name === aggType.name);
+                let customSubLayer = this.customSubLayers.find(agg => agg.name === aggType.name);
 
-                if (customAggregation) {
+                if (customSubLayer) {
                     this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
                         let maxRecords = query.resultRecordCount;
                         let esQuery = buildESQuery(indexConfig, query, {
@@ -351,8 +356,8 @@ module.exports = function (koop) {
                             mapping,
                             customIndexNameBuilder: this.customIndexNameBuilder
                         });
-                        featureCollection = customAggregation.getAggregationFeatures({
-                            indexConfig, mapping, query: esQuery, esClient: this.esClients[esId], featureCollection,
+                        featureCollection = customSubLayer.getFeatures({
+                            indexConfig, mapping, query: esQuery, esClient: this.client, featureCollection,
                             queryParameters: req.query
                         }).then(aggregatedFeatureCollection => {
                             // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
@@ -382,7 +387,7 @@ module.exports = function (koop) {
     }
 
     this.registerCustomAggregation = function (aggregation) {
-        this.customAggregations.push(aggregation);
+        this.customSubLayers.push(aggregation);
     }
 
     this.getCustomSymbolizer = function (indexConfig = {}) {
@@ -836,15 +841,15 @@ module.exports = function (koop) {
         return geoFilter;
     }
 
-    function buildDefaultAggLayers(indexConfig, mapping, customAggregations, query) {
+    function buildDefaultSubLayers(indexConfig, mapping, customSubLayers, query) {
 
         let index = indexConfig.index;
-        let aggNames = indexConfig.aggregations.map(agg => agg.name)
+        let subLayerNames = indexConfig.subLayers.map(agg => agg.name)
         let returnFields = indexConfig.returnFields;
-        let aggLayerList = [];
+        let subLayerList = [];
 
-        aggNames.forEach(aggName => {
-            if (aggName == 'geohash') {
+        subLayerNames.forEach(subName => {
+            if (subName == 'geohash') {
 
                 let hashCollection = {
                     type: 'FeatureCollection',
@@ -870,42 +875,42 @@ module.exports = function (koop) {
                 };
                 hashCollection.features = [addDefaultReturnFields(defaultFeature, mapping, returnFields)];
 
-                aggLayerList.push(hashCollection);
+                subLayerList.push(hashCollection);
             } else {
-                let customAggregation = customAggregations.find(customAgg => customAgg.name === aggName);
-                if (customAggregation) {
-                    let aggConfig = indexConfig.aggregations.find(aggConfig => aggConfig.name === aggName);
-                    let aggCollection = {
+                let customSubLayer = customSubLayers.find(customSub => customSub.name === subName);
+                if (customSubLayer) {
+                    let subLayerConfig = indexConfig.subLayers.find(subConfig => subConfig.name === subName);
+                    let subLayerCollection = {
                         type: 'FeatureCollection',
                         features: [],
                         metadata: {
-                            name: `${index}_${aggName}`,
+                            name: `${index}_${subName}`,
                             maxRecordCount: 6000
                         }
                     };
                     let defaultFeature = {
                         type: 'Feature',
                         geometry: {
-                            "type": aggConfig.geometryType || "Polygon",
+                            "type": subLayerConfig.geometryType || "Polygon",
                             "coordinates": [
                                 [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
                                     [100.0, 1.0], [100.0, 0.0]]
                             ]
                         },
-                        properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
+                        properties: customSubLayer.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                     };
                     if (defaultFeature.geometry.type === "Point") {
                         defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
                     }
-                    aggCollection.features = [defaultFeature];
+                    subLayerCollection.features = [defaultFeature];
 
-                    aggLayerList.push(aggCollection);
+                    subLayerList.push(subLayerCollection);
                 }
 
             }
         });
 
-        return aggLayerList;
+        return subLayerList;
     }
 
     function addDefaultReturnFields(feature, mapping, returnFields) {
