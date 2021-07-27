@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## UNRELEASED
+## [3.1.0] - 07-27-2021
 ### Changed
 * aggregations config has been changed to subLayers
 ### Added
@@ -10,8 +10,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [3.0.0] - 06-17-2021
 ### Changed
-* Moved to the new [@elastic/elasticsearch](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/index.html) 
-  library - any customization code needs to take this into account 
+* Moved to the new [@elastic/elasticsearch](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/index.html)
+  library - any customization code needs to take this into account
 
 ## [2.5.2] - 06-04-2021
 ### Fixed
@@ -70,6 +70,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.1.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.2...v3.0.0
 [2.5.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.0...v2.5.1
