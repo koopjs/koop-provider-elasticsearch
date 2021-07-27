@@ -82,7 +82,6 @@ module.exports = function (koop) {
             return;
         }
 
-        const aggServiceConfig = config.aggServer;
         let featureCollection = {
             type: 'FeatureCollection',
             features: [],
@@ -197,11 +196,13 @@ module.exports = function (koop) {
                 }
                 // logger.debug(esQuery);
                 // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                // let startESQueryMillis = Date.now().valueOf();
+                let startESQueryMillis = Date.now().valueOf();
                 // console.log(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.client.search(esQuery);
                 searchResponse = searchResponse.body;
-                // logger.debug(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
+                console.log('Query:');
+                console.log(JSON.stringify(esQuery, null, 2));
+                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
@@ -290,8 +291,8 @@ module.exports = function (koop) {
 
                 let returnObject = {layers: [featureCollection]};
                 if (indexConfig.subLayers && indexConfig.subLayers.length && undefined === layerId) {
-                    const aggLayers = buildDefaultSubLayers(indexConfig, mapping, this.customSubLayers, query);
-                    returnObject.layers = returnObject.layers.concat(aggLayers);
+                    const subLayers = buildDefaultSubLayers(indexConfig, mapping, this.customSubLayers, query);
+                    returnObject.layers = returnObject.layers.concat(subLayers);
                     // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                     callback(null, returnObject);
                 } else {

@@ -23,7 +23,7 @@ class GeoTileAggregation {
 
     async getFeatures(options) {
         this.indexConfig = options.indexConfig;
-        this.aggConfig = this.indexConfig.aggregations.find(agg => agg.name === NAME);
+        this.aggConfig = this.indexConfig.subLayers.find(agg => agg.name === NAME);
 
         if(!this.aggConfig) {
             // this shouldn't have even been called, return the feature collection
@@ -109,7 +109,7 @@ class GeoTileAggregation {
 
     defaultReturnFields(mapping, indexConfig, customAggs) {
         let properties = {count: 0}; // always use a count
-        const aggConfig = indexConfig.aggregations.find(agg => agg.name === NAME);
+        const aggConfig = indexConfig.subLayers.find(agg => agg.name === NAME);
         if (!aggConfig) {
             return properties;
         }
