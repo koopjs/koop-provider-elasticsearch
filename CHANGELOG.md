@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## UNRELEASED
+### Changed
+* aggregations config has been changed to subLayers
+### Added
+* default access to geo hash and geo tile aggregation subLayers
+
 ## [3.0.0] - 06-17-2021
 ### Changed
 * Moved to the new [@elastic/elasticsearch](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/index.html) 

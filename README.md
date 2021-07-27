@@ -93,7 +93,7 @@ The following is a sample configuration file showing most capabilities
           "dateFields": [
             "date"
           ],
-          "aggregations": [],
+          "subLayers": [],
           "shapeIndex": {
             "name": "states",
             "joinField": "state.name"
@@ -114,7 +114,7 @@ The following is a sample configuration file showing most capabilities
           "dateFields": [
             "properties.date"
           ],
-          "aggregations": [],
+          "subLayers": [],
           "maxResults": 1000
         }
       }
@@ -139,10 +139,71 @@ Polygons that do not follow the right-hand rule will not be displayed as feature
 * `returnFields` includes all fields that will be returned by the feature service
 * `dateFields` includes any return fields that should be treated as dates
 * `idField` if the index includes a field that can be treated as the OBJECTID field, this should be set
-* `aggregations` any aggregations to use as sub-layers.  Currently only `geohash` is valid and only for `geo_point` indices.
+* `subLayers` any sub-layers to be used. Provided sub layers are `geohash_aggregation` and `geotile_aggregation` but custom subLayers may be used here as well.
 * `maxResults` the maximum features returned from a single request
 * `shapeIndex` if the service will join to a shapeIndex for geometry list the name of the index (defined in 
 `shapeIndices`) and the joinField from this index.
+* `vectorLayerID` the 0 based index of the subLayer to use for vector output
+* `vectorStyle` an optional map-box style to use for the vector layer
+
+#### Sub-Layer Configurations
+All subLayer configurations must include a `name` to map to a registered subLayer class. Other than that an `options` object contains
+any other needed information. 
+
+* `offset` which is used by both provided subLayers is the offset value passed in by esri clients. This value is in meters and is larger for higher zoom levels.
+* `aggregationFields` can be used to pass in sub-aggregations to elastic search. The fields will be added to the output for display in pop-ups and/or for use in symbology.
+
+_GeoHash_
+
+precision is between 1-12 for geohash.
+
+```json
+{
+  "name": "geohash_aggregation",
+  "options": {
+    "tileConfig": [
+      { "precision": 8, "offset": 16 },
+      { "precision": 6, "offset": 10000 },
+      { "precision": 4, "offset": 32000 },
+      { "precision": 2, "offset": 640000 }
+    ],
+    "aggregationFields": {
+      "speed_avg": {
+        "avg": { "field":  "speed"}
+      },
+      "speed_min": {
+        "min": { "field": "speed"}
+      }
+    }
+  }
+}
+```
+
+_GeoTile_
+
+precision is between 0-29 for geotile.
+```json
+{
+  "name": "geotile_aggregation",
+  "options": {
+    "tileConfig": [
+      { "precision": 22, "offset": 16 },
+      { "precision": 16, "offset": 10000 },
+      { "precision": 10, "offset": 32000 },
+      { "precision": 4, "offset": 640000 }
+    ],
+    "aggregationFields": {
+      "speed_avg": {
+        "avg": { "field":  "speed"}
+      },
+      "speed_min": {
+        "min": { "field": "speed"}
+      }
+    }
+  }
+}
+```
+
 
 #### Additional Index Configurations
 `mapReturnValues` is an object that can contain keys that are field names that in turn have their own keys equal to field 
