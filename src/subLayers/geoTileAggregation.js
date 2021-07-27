@@ -21,6 +21,11 @@ const NAME = "geotile_aggregation";
 class GeoTileAggregation {
     name = NAME;
 
+    /**
+     *
+     * @param options
+     * @returns {Promise<FeatureCollection>}
+     */
     async getFeatures(options) {
         this.indexConfig = options.indexConfig;
         this.aggConfig = this.indexConfig.subLayers.find(agg => agg.name === NAME);
