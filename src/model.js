@@ -13,10 +13,12 @@ const logger = new Logger(config);
 const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
+const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
+const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
 
 module.exports = function (koop) {
     this.customSymbolizers = [];
-    this.customAggregations = [];
+    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation()];
     this.customIndexNameBuilder = undefined;
 
     this.setTimeExtent = function (featureCollection) {
@@ -36,8 +38,11 @@ module.exports = function (koop) {
             this.esConfig = null;
             this.indexInfo = new IndexInfo(this.esClients);
         }
-        const serviceName = req.params.id;
         const esId = req.params.host;
+        this.client = this.esClients[esId].child();
+
+        const serviceName = req.params.id;
+
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
         const indexConfig = this.esConfig.indices[serviceName];
@@ -77,7 +82,6 @@ module.exports = function (koop) {
             return;
         }
 
-        const aggServiceConfig = config.aggServer;
         let featureCollection = {
             type: 'FeatureCollection',
             features: [],
@@ -149,7 +153,7 @@ module.exports = function (koop) {
                         mapping,
                         customIndexNameBuilder: this.customIndexNameBuilder
                     });
-                    this.esClients[esId].count(countQuery).then(function (resp) {
+                    this.client.count(countQuery).then(function (resp) {
                         logger.debug("count resp:", resp);
                         featureCollection.count = resp.body.count;
                         callback(null, featureCollection);
@@ -173,7 +177,7 @@ module.exports = function (koop) {
 
                 if (useJoinShapes) {
                     let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
-                    joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.esClients[esId], query);
+                    joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.client, query);
                     hitConverter.setJoinShapes(joinShapeHits, joinConfig);
 
                     let joinValues = joinShapeHits.map(hit => {
@@ -192,11 +196,13 @@ module.exports = function (koop) {
                 }
                 // logger.debug(esQuery);
                 // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                // let startESQueryMillis = Date.now().valueOf();
+                let startESQueryMillis = Date.now().valueOf();
                 // console.log(JSON.stringify(esQuery, null, 2));
-                let searchResponse = await this.esClients[esId].search(esQuery);
+                let searchResponse = await this.client.search(esQuery);
                 searchResponse = searchResponse.body;
-                // logger.debug(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
+                console.log('Query:');
+                console.log(JSON.stringify(esQuery, null, 2));
+                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
@@ -284,9 +290,9 @@ module.exports = function (koop) {
                 }
 
                 let returnObject = {layers: [featureCollection]};
-                if (indexConfig.aggregations && indexConfig.aggregations.length && undefined === layerId) {
-                    const aggLayers = buildDefaultAggLayers(indexConfig, mapping, this.customAggregations, query);
-                    returnObject.layers = returnObject.layers.concat(aggLayers);
+                if (indexConfig.subLayers && indexConfig.subLayers.length && undefined === layerId) {
+                    const subLayers = buildDefaultSubLayers(indexConfig, mapping, this.customSubLayers, query);
+                    returnObject.layers = returnObject.layers.concat(subLayers);
                     // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                     callback(null, returnObject);
                 } else {
@@ -300,9 +306,9 @@ module.exports = function (koop) {
             // Handle getMapping promise rejections so browser gets an error response instead of hanging
 
 
-        } else if (indexConfig.aggregations && indexConfig.aggregations.length >= parseInt(layerId)) {
-            const aggType = indexConfig.aggregations[parseInt(layerId) - 1];
-            if (aggType.name == 'geohash') {
+        } else if (indexConfig.subLayers && indexConfig.subLayers.length >= parseInt(layerId)) {
+            const subLayerType = indexConfig.subLayers[parseInt(layerId) - 1];
+            if (false) {
                 this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
 
                     let maxRecords = query.resultRecordCount;
@@ -320,7 +326,7 @@ module.exports = function (koop) {
                         customIndexNameBuilder: this.customIndexNameBuilder
                     });
 
-                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.esClients[esId]).then(result => {
+                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.client).then(result => {
                         featureCollection.features = result;
                         featureCollection.metadata = {
                             name: indexConfig.index + "_geohash",
@@ -341,9 +347,9 @@ module.exports = function (koop) {
                     callback(error, featureCollection);
                 });
             } else {
-                let customAggregation = this.customAggregations.find(agg => agg.name === aggType.name);
+                let customSubLayer = this.customSubLayers.find(sub => sub.name === subLayerType.name);
 
-                if (customAggregation) {
+                if (customSubLayer) {
                     this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
                         let maxRecords = query.resultRecordCount;
                         let esQuery = buildESQuery(indexConfig, query, {
@@ -351,12 +357,12 @@ module.exports = function (koop) {
                             mapping,
                             customIndexNameBuilder: this.customIndexNameBuilder
                         });
-                        featureCollection = customAggregation.getAggregationFeatures({
-                            indexConfig, mapping, query: esQuery, esClient: this.esClients[esId], featureCollection,
+                        featureCollection = customSubLayer.getFeatures({
+                            indexConfig, mapping, query: esQuery, esClient: this.client, featureCollection,
                             queryParameters: req.query
-                        }).then(aggregatedFeatureCollection => {
+                        }).then(subLayerFeatureCollection => {
                             // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                            callback(null, aggregatedFeatureCollection);
+                            callback(null, subLayerFeatureCollection);
                         }).catch(error => {
                             logger.error(error);
                             callback(error, featureCollection);
@@ -381,8 +387,8 @@ module.exports = function (koop) {
         this.customSymbolizers.push(symbolizer);
     }
 
-    this.registerCustomAggregation = function (aggregation) {
-        this.customAggregations.push(aggregation);
+    this.registerCustomSubLayer = function (subLayer) {
+        this.customSubLayers.push(subLayer);
     }
 
     this.getCustomSymbolizer = function (indexConfig = {}) {
@@ -493,92 +499,9 @@ module.exports = function (koop) {
         return queryBody;
     }
 
-    function queryHexAggregations(indexConfig, aggServerConfig, query, callback) {
-        queryAggregations(indexConfig, aggServerConfig, query, "geo_hex", (result) => {
-            callback(result);
-        });
-    }
-
-    function queryGridAggregations(indexConfig, aggServerConfig, query, callback) {
-        queryAggregations(indexConfig, aggServerConfig, query, "geo_grid", (result) => {
-            callback(result);
-        });
-    }
-
-    function queryPolygonAggregations(indexConfig, aggServerConfig, query, aggField, callback) {
-        queryAggregations(indexConfig, aggServerConfig, query, aggField, (result) => {
-            callback(result);
-        });
-    }
-
-    function queryAggregations(indexConfig, aggServerConfig, query, aggType, callback) {
-        var bbox = {xmin: -180, xmax: 180, ymin: -90, ymax: 90};
-        if (query.geometry) {
-            bbox = JSON.parse(query.geometry);
-            if (bbox.rings !== undefined) {
-                bbox.xmin = 180.0;
-                bbox.xmax = -180.0;
-                bbox.ymax = -90.0;
-                bbox.ymin = 90.0;
-                for (var ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
-                    bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
-                    bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
-                    bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
-                    bbox.ymax = Math.max(bbox.ymax, bbox.rings[0][ringIdx][1]);
-                }
-            }
-        }
-        if (undefined !== bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
-            var topLeft = proj.forward([bbox.xmin, bbox.ymax]);
-            var bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
-            bbox.xmin = topLeft[0];
-            bbox.ymax = topLeft[1];
-            bbox.xmax = bottomRight[0];
-            bbox.ymin = bottomRight[1];
-        }
-
-
-        const options = {
-            hostname: aggServerConfig.hostname,
-            port: aggServerConfig.port,
-            path: '/algorithm/execute',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
-        if (undefined !== aggServerConfig.path) {
-            options.path = aggServerConfig.path + options.path;
-        }
-        var resultJson = '';
-        var request = http.request(options, (res) => {
-            res.on('data', (chunk) => {
-                resultJson += chunk;
-            });
-            res.on('end', () => {
-                callback(resultJson);
-            });
-            res.on('error', (error) => {
-                console.error(error);
-                logger.error(error);
-            });
-        });
-
-
-        request.write(JSON.stringify({
-            data_source: indexConfig.index,
-            bounding_box: bbox,
-            aggregate_by: aggType,
-            algorithm: "feature_count",
-            return_features: true
-        }));
-        request.end();
-    }
-
     function buildESQuery(indexConfig, query, options) {
         let maxRecords = options.maxRecords;
         let mapping = options.mapping;
-        let aggregationBBox = options.aggregationBBox;
         let customIndexNameBuilder = options.customIndexNameBuilder;
         var rawSearchKey = 'rawElasticQuery';
         let indexName = indexConfig.index;
@@ -705,7 +628,7 @@ module.exports = function (koop) {
 
         if (query.geometry && indexConfig.geometryField) { // don't bother if no geometry from the original index
 
-            let geoFilter = buildGeoFilter(query, indexConfig, aggregationBBox);
+            let geoFilter = buildGeoFilter(query, indexConfig);
             if (geoFilter) {
                 if (!esQuery.body.query.bool.filter) {
                     esQuery.body.query.bool.filter = [];
@@ -757,7 +680,7 @@ module.exports = function (koop) {
         return esQuery;
     }
 
-    function buildGeoFilter(query, indexConfig, aggregationBBox = null) {
+    function buildGeoFilter(query, indexConfig) {
         let geoFilter;
         if (query.distance) {
             geoFilter = {
@@ -779,30 +702,26 @@ module.exports = function (koop) {
             let topLeft = undefined;
             let bottomRight = undefined;
 
-            if (aggregationBBox) {
-                topLeft = [aggregationBBox.xmin, aggregationBBox.ymax];
-                bottomRight = [aggregationBBox.xmax, aggregationBBox.ymin];
-            } else {
-                if (bbox.rings !== undefined) {
-                    bbox.xmin = 180.0;
-                    bbox.xmax = -180.0;
-                    bbox.ymax = -90.0;
-                    bbox.ymin = 90.0;
-                    for (let ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
-                        bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
-                        bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
-                        bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
-                        bbox.ymax = Math.max(bbox.ymax, bbox.rings[0][ringIdx][1]);
-                    }
-                }
-
-                topLeft = [bbox.xmin, bbox.ymax];
-                bottomRight = [bbox.xmax, bbox.ymin];
-                if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
-                    topLeft = proj.forward([bbox.xmin, bbox.ymax]);
-                    bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
+            if (bbox.rings !== undefined) {
+                bbox.xmin = 180.0;
+                bbox.xmax = -180.0;
+                bbox.ymax = -90.0;
+                bbox.ymin = 90.0;
+                for (let ringIdx = 0; ringIdx < bbox.rings[0].length; ringIdx++) {
+                    bbox.xmin = Math.min(bbox.xmin, bbox.rings[0][ringIdx][0]);
+                    bbox.xmax = Math.max(bbox.xmax, bbox.rings[0][ringIdx][0]);
+                    bbox.ymin = Math.min(bbox.ymin, bbox.rings[0][ringIdx][1]);
+                    bbox.ymax = Math.max(bbox.ymax, bbox.rings[0][ringIdx][1]);
                 }
             }
+
+            topLeft = [bbox.xmin, bbox.ymax];
+            bottomRight = [bbox.xmax, bbox.ymin];
+            if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
+                topLeft = proj.forward([bbox.xmin, bbox.ymax]);
+                bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
+            }
+
             // check bounds
             topLeft[0] = Math.max(-180.0, topLeft[0]);
             bottomRight[0] = Math.min(180.0, bottomRight[0]);
@@ -836,104 +755,73 @@ module.exports = function (koop) {
         return geoFilter;
     }
 
-    function buildDefaultAggLayers(indexConfig, mapping, customAggregations, query) {
+    function buildDefaultSubLayers(indexConfig, mapping, customSubLayers, query) {
 
         let index = indexConfig.index;
-        let aggNames = indexConfig.aggregations.map(agg => agg.name)
+        let subLayerNames = indexConfig.subLayers.map(agg => agg.name)
         let returnFields = indexConfig.returnFields;
-        let aggLayerList = [];
+        let subLayerList = [];
 
-        aggNames.forEach(aggName => {
-            if (aggName == 'geohash') {
-
-                let hashCollection = {
+        subLayerNames.forEach(subName => {
+            let customSubLayer = customSubLayers.find(customSub => customSub.name === subName);
+            if (customSubLayer) {
+                let subLayerConfig = indexConfig.subLayers.find(subConfig => subConfig.name === subName);
+                let subLayerCollection = {
                     type: 'FeatureCollection',
                     features: [],
                     metadata: {
-                        name: index + "_geohash",
+                        name: `${index}_${subName}`,
                         maxRecordCount: 6000
                     }
                 };
                 let defaultFeature = {
                     type: 'Feature',
                     geometry: {
-                        "type": "Polygon",
+                        "type": subLayerConfig.geometryType || "Polygon",
                         "coordinates": [
                             [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
                                 [100.0, 1.0], [100.0, 0.0]]
                         ]
                     },
-                    properties: {
-                        FEATURE_CNT: 0,
-                        AGGREGATION: "value"
-                    }
+                    properties: customSubLayer.defaultReturnFields(mapping, indexConfig, query.customAggregations)
                 };
-                hashCollection.features = [addDefaultReturnFields(defaultFeature, mapping, returnFields)];
-
-                aggLayerList.push(hashCollection);
-            } else {
-                let customAggregation = customAggregations.find(customAgg => customAgg.name === aggName);
-                if (customAggregation) {
-                    let aggConfig = indexConfig.aggregations.find(aggConfig => aggConfig.name === aggName);
-                    let aggCollection = {
-                        type: 'FeatureCollection',
-                        features: [],
-                        metadata: {
-                            name: `${index}_${aggName}`,
-                            maxRecordCount: 6000
-                        }
-                    };
-                    let defaultFeature = {
-                        type: 'Feature',
-                        geometry: {
-                            "type": aggConfig.geometryType || "Polygon",
-                            "coordinates": [
-                                [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],
-                                    [100.0, 1.0], [100.0, 0.0]]
-                            ]
-                        },
-                        properties: customAggregation.defaultReturnFields(mapping, indexConfig, query.customAggregations)
-                    };
-                    if (defaultFeature.geometry.type === "Point") {
-                        defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
-                    }
-                    aggCollection.features = [defaultFeature];
-
-                    aggLayerList.push(aggCollection);
+                if (defaultFeature.geometry.type === "Point") {
+                    defaultFeature.geometry.coordinates = defaultFeature.geometry.coordinates[0][0];
                 }
+                subLayerCollection.features = [defaultFeature];
 
+                subLayerList.push(subLayerCollection);
             }
         });
-
-        return aggLayerList;
+        return subLayerList;
     }
 
-    function addDefaultReturnFields(feature, mapping, returnFields) {
-        for (let i = 0; i < returnFields.length; i++) {
-            let fieldPath = returnFields[i].split('.');
-
-            let mappingField = mapping[fieldPath[0]];
-            for (let pathIndex = 1; pathIndex < fieldPath.length; pathIndex++) {
-                if (mappingField.properties) {
-                    mappingField = mappingField.properties;
-                }
-                mappingField = mappingField[fieldPath[pathIndex]];
-            }
-            switch (mappingField.type) {
-                case "integer":
-                    feature.properties[returnFields[i]] = 0;
-                    break;
-                case "text":
-                    feature.properties[returnFields[i]] = '';
-                    break;
-                case "date":
-                    feature.properties[returnFields[i]] = moment().unix();
-                    break;
-
-            }
-        }
-        return feature;
-    }
+    // function addDefaultReturnFields(feature, mapping, returnFields) {
+    //     for (let i = 0; i < returnFields.length; i++) {
+    //         let fieldPath = returnFields[i].split('.');
+    //
+    //         let mappingField = mapping[fieldPath[0]];
+    //         for (let pathIndex = 1; pathIndex < fieldPath.length; pathIndex++) {
+    //             if (mappingField.properties) {
+    //                 mappingField = mappingField.properties;
+    //             }
+    //             mappingField = mappingField[fieldPath[pathIndex]];
+    //         }
+    //         switch (mappingField.type) {
+    //             case "integer":
+    //                 feature.properties[returnFields[i]] = 0;
+    //                 break;
+    //             case "text":
+    //                 feature.properties[returnFields[i]] = '';
+    //                 break;
+    //             case "date":
+    //                 feature.properties[returnFields[i]] = moment().unix();
+    //                 break;
+    //
+    //         }
+    //     }
+    //     return feature;
+    // }
 
     function validateBounds(geometry) {
         let bbox = geometry;

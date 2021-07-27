@@ -51,7 +51,7 @@ class IndexInfo{
                 }
             };
             esClient.search(statsQuery).then(result => {
-                resolve(result.aggregations.fieldstats);
+                resolve(result.body.aggregations.fieldstats);
             }, error => {
                 reject(error);
             });

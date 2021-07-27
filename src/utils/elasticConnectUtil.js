@@ -1,33 +1,12 @@
 const appConfig = require('config');
 const {Client} = require('@elastic/elasticsearch');
+const fs = require('fs');
 
 function initializeESClients() {
     let esClients = {};
     for (let esId in appConfig.esConnections){
         let connectInfo = appConfig.esConnections[esId];
-        let hostProtocol = connectInfo.protocol;
-        let hosts = [];
-        for (let i=0; i < connectInfo.hosts.length; i++){
-            let host = hostProtocol + connectInfo.hosts[i];
-            if(connectInfo.port) {
-                host = host + ":" + connectInfo.port;
-            }
-
-            if (connectInfo.userName && connectInfo.password) {
-                let hostJson = {
-                    host: connectInfo.hosts[i],
-                    auth: connectInfo.userName + ":" + connectInfo.password,
-                    protocol: hostProtocol.split(":")[0],
-                    port: connectInfo.port,
-                    path: connectInfo.path
-                };
-                console.log(hostJson);
-                hosts.push(hostJson);
-            } else {
-                console.log(host);
-                hosts.push(host);
-            }
-        }
+        const hosts = connectInfo.hosts;
 
         // optional security
         let esKey = connectInfo.key;
@@ -49,6 +28,10 @@ function initializeESClients() {
 
         let esClient = new Client({
             node: hosts,
+            auth: {
+                username: connectInfo.userName,
+                password: connectInfo.password
+            },
             requestTimeout: 900000,
             keepAlive: false,
             ssl: {
