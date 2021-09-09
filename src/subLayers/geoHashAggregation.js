@@ -1,4 +1,3 @@
-const tilebelt = require('@mapbox/tilebelt');
 const GeoHashUtil = require('../utils/geohashUtil');
 const HitConverter = require('../utils/hitConverter');
 
