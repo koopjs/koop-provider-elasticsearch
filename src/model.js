@@ -92,6 +92,10 @@ module.exports = function (koop) {
             }
         };
 
+        if(indexConfig.capabilities){
+            featureCollection.metadata.capabilities = indexConfig.capabilities;
+        }
+
         if (customSymbolizer) {
             featureCollection.metadata.vt = customSymbolizer.vtStyle();
         } else if (indexConfig.vectorStyle) {
@@ -138,7 +142,7 @@ module.exports = function (koop) {
             return;
         }
 
-        // logger.debug(JSON.stringify(esQuery));
+        // logger.debug(JSON.stringify(query));
         if (layerId === "0" || undefined === layerId) {
             try {
                 let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);

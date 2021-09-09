@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Changed
+* No longer auto-converts 'objectid' field to '_id' for ES queries
+### Added
+* Support to allow configured list of capabilities for feature service layers. This will allow a client to handle any
+capability they wish.
+
 ## [3.1.0] - 07-27-2021
 ### Changed
 * aggregations config has been changed to subLayers
