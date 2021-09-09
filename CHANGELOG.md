@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.2.0] - 09-09-2021
+### Changed
+* No longer auto-converts 'objectid' field to '_id' for ES queries
+### Added
+* Support to allow configured list of capabilities for feature service layers. This will allow a client to handle any
+capability they wish.
+
 ## [3.1.0] - 07-27-2021
 ### Changed
 * aggregations config has been changed to subLayers
@@ -70,6 +77,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.2.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.2...v3.0.0
 [2.5.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.1...v2.5.2

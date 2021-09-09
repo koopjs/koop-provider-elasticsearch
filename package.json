@@ -1,6 +1,6 @@
 {
   "name": "@koopjs/provider-elasticsearch",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Elastic Search Provider for Koop",
   "main": "src/index.js",
   "scripts": {
@@ -18,8 +18,7 @@
     "@mapbox/geojson-rewind": "^0.5.0",
     "@mapbox/tilebelt": "^1.0.2",
     "flat": "^5.0.0",
-    "gh-release": "^6.0.0",
-    "koop": "^4.0.4",
+    "koop": "^4.2.0",
     "moment": "2.20.1",
     "ngeohash": "^0.6.3",
     "proj4": "2.4.4",
@@ -30,6 +29,7 @@
     "url": "git+https://github.com/koopjs/koop-provider-elasticsearch.git"
   },
   "devDependencies": {
-    "@koopjs/cli": "^1.1.0"
+    "@koopjs/cli": "^1.1.0",
+    "gh-release": "^6.0.0"
   }
 }
