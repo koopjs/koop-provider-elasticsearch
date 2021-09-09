@@ -14,9 +14,9 @@ class WhereParser {
 
         // convert objectid's to the _id used by elasticsearch.
         // TODO: make the objectid column configurable (allow using other columns/attributes)
-        if (lowercaseFieldName === "objectid") {
-            return "_id";
-        }
+        // if (lowercaseFieldName === "objectid") {
+        //     return "_id";
+        // }
 
         for(let i=0; i< this.returnFields.length; i++){
             let rootFieldName = this.returnFields[i];
