@@ -29,7 +29,7 @@
     "url": "git+https://github.com/koopjs/koop-provider-elasticsearch.git"
   },
   "devDependencies": {
-    "@koopjs/cli": "^1.1.0",
+    "@koopjs/cli": "^1.1.2",
     "gh-release": "^6.0.0"
   }
 }
