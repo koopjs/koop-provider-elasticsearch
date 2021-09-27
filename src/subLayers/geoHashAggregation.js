@@ -38,7 +38,11 @@ class GeoHashAggregation {
         this.maxAllowableOffset = queryParams.maxAllowableOffset || 0;
         this.aggregationFields = queryParams.customAggregations || this.aggConfig.options.aggregationFields;
         let tileConfig = queryParams.tileConfig || this.aggConfig.options.tileConfig;
-        let precision = tileConfig.find(tile => tile.offset >= this.maxAllowableOffset).precision || 0;
+        let offsetSRFactor = 1;
+        if(queryParams.geometry && queryParams.geometry.spatialReference && queryParams.geometry.spatialReference.wkid === 4326){
+            offsetSRFactor = 0.00001;
+        }
+        let precision = tileConfig.find(tile => tile.offset * offsetSRFactor >= this.maxAllowableOffset).precision || 0;
 
         try {
             let aggField = this.indexConfig.geometryField;

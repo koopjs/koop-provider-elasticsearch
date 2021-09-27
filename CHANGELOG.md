@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Aggregation sub-layers handle WGS84 requests correctly
+
 ## [3.2.0] - 09-09-2021
 ### Changed
 * No longer auto-converts 'objectid' field to '_id' for ES queries
