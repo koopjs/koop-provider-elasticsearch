@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.2.1] - 09-27-2021
 ### Fixed
 * Aggregation sub-layers handle WGS84 requests correctly
 
@@ -81,6 +81,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v2.5.2...v3.0.0
