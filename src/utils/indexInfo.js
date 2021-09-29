@@ -25,7 +25,7 @@ class IndexInfo{
                     } else {
                         const mappings = result.body[Object.keys(result.body)[0]].mappings;
                         this.mappings[esName][indexName] = mappings.properties;
-                            resolve(this.mappings[esName][indexName]);
+                        resolve(this.mappings[esName][indexName]);
                     }
 
                 }, error => {
@@ -34,6 +34,55 @@ class IndexInfo{
             }
 
         });
+    }
+
+    getFields(mapping, idField, returnFields, editable = false){
+        let fields = [];
+        const fieldTemplate = {
+            name: "name",
+            type: "type",
+            alias: "alias",
+            sqlType: "sqlTypeOther",
+            domain: null,
+            editable,
+            defaultValue: null
+        };
+
+        let keys = Object.keys(mapping);
+        keys = keys.filter(key => returnFields.includes(key));
+        keys.forEach(key => {
+            let field = {...fieldTemplate};
+            field.name = field.alias = key;
+            if(key === idField){
+                field.type = "Integer";
+                field.sqlType = "sqlTypeInteger";
+                fields.push(field);
+            } else if(mapping[key].type !== "geo_point" && mapping[key].type !== "geo_shape") {
+                switch (mapping[key].type) {
+                    case "keyword":
+                    case "text":
+                        field.type = "String";
+                        field.sqlType = "sqlTypeNVarchar";
+                        field.length = 256;
+                        break;
+                    case "integer":
+                        field.type = "Integer";
+                        field.sqlType = "sqlTypeInteger";
+                        break;
+                    case "float":
+                        field.type = "Double";
+                        field.sqlType = "sqlTypeFloat";
+                        break;
+                    case "date":
+                        field.type = "Date";
+                        field.sqlType = "sqlTypeOther";
+                        break;
+                }
+                fields.push(field);
+            }
+        });
+
+        return fields;
     }
 
     getStatistics(esName, indexName, fieldName){
