@@ -146,7 +146,7 @@ module.exports = function (koop) {
         if (layerId === "0" || undefined === layerId) {
             try {
                 let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
-
+                featureCollection.metadata.fields = this.indexInfo.getFields(mapping, indexConfig.idField, indexConfig.returnFields, !!indexConfig.editor);
                 let maxRecords = query.resultRecordCount;
                 if (!maxRecords || maxRecords > indexConfig.maxResults) {
                     maxRecords = indexConfig.maxResults;
