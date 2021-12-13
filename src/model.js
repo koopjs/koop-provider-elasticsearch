@@ -75,6 +75,9 @@ module.exports = function (koop) {
             }
         } else {
             extent = undefined;
+            if (req.query.geometry) {
+                req.query.geometry = normalizeGeometry(req.query.geometry, req.query.inSR);
+            }
         }
         if (!indexConfig) {
             logger.warn("No Layer with name " + serviceName + " is configured.");
@@ -92,7 +95,7 @@ module.exports = function (koop) {
             }
         };
 
-        if(indexConfig.capabilities){
+        if (indexConfig.capabilities) {
             featureCollection.metadata.capabilities = indexConfig.capabilities;
         }
 
@@ -206,7 +209,7 @@ module.exports = function (koop) {
                 searchResponse = searchResponse.body;
                 console.log('Query:');
                 console.log(JSON.stringify(esQuery, null, 2));
-                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis)/1000} seconds`);
+                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis) / 1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
@@ -257,14 +260,6 @@ module.exports = function (koop) {
                     featureCollection.filtersApplied = {};
                 }
 
-                // in cases where there is a mapping of the return values we direct the featureserver to not filter
-                // the values based on the query parameters (since the values don't match up until after mapping) by
-                // telling the featureserver that the where clause filtering has already been applied.
-                //if (true || indexConfig.mapReturnValues) {
-                // if (indexConfig.mapReturnValues) {
-                //     featureCollection.filtersApplied.where = true;
-                // }
-
                 featureCollection.filtersApplied.where = true;
 
                 // we have already filtered the geometries using the incoming request. there are bugs regarding
@@ -312,76 +307,36 @@ module.exports = function (koop) {
 
         } else if (indexConfig.subLayers && indexConfig.subLayers.length >= parseInt(layerId)) {
             const subLayerType = indexConfig.subLayers[parseInt(layerId) - 1];
-            if (false) {
-                this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
+            let customSubLayer = this.customSubLayers.find(sub => sub.name === subLayerType.name);
 
+            if (customSubLayer) {
+                this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
                     let maxRecords = query.resultRecordCount;
-                    if (!maxRecords || maxRecords > indexConfig.maxResults) {
-                        maxRecords = indexConfig.maxResults;
-                    }
-                    let geohashUtil = new GeoHashUtil(query.geometry, query.maxAllowableOffset);
-                    if (geohashUtil.bbox) {
-                        geohashUtil.fitBoundingBoxToHashes();
-                    }
                     let esQuery = buildESQuery(indexConfig, query, {
                         maxRecords,
                         mapping,
-                        aggregationBBox: geohashUtil.bbox,
                         customIndexNameBuilder: this.customIndexNameBuilder
                     });
-
-                    queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, this.client).then(result => {
-                        featureCollection.features = result;
-                        featureCollection.metadata = {
-                            name: indexConfig.index + "_geohash",
-                            maxRecordCount: 10000
-                        };
-                        featureCollection.filtersApplied = {where: true};
-                        featureCollection.filtersApplied.geometry = true;
+                    featureCollection = customSubLayer.getFeatures({
+                        indexConfig, mapping, query: esQuery, esClient: this.client, featureCollection,
+                        queryParameters: req.query
+                    }).then(subLayerFeatureCollection => {
                         // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                        callback(null, featureCollection);
+                        callback(null, subLayerFeatureCollection);
                     }).catch(error => {
                         logger.error(error);
                         callback(error, featureCollection);
                     });
-
                 }).catch(error => {
                     // Handle getMapping promise rejections so browser gets an error response instead of hanging
                     logger.error(error);
                     callback(error, featureCollection);
                 });
-            } else {
-                let customSubLayer = this.customSubLayers.find(sub => sub.name === subLayerType.name);
 
-                if (customSubLayer) {
-                    this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping).then(mapping => {
-                        let maxRecords = query.resultRecordCount;
-                        let esQuery = buildESQuery(indexConfig, query, {
-                            maxRecords,
-                            mapping,
-                            customIndexNameBuilder: this.customIndexNameBuilder
-                        });
-                        featureCollection = customSubLayer.getFeatures({
-                            indexConfig, mapping, query: esQuery, esClient: this.client, featureCollection,
-                            queryParameters: req.query
-                        }).then(subLayerFeatureCollection => {
-                            // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                            callback(null, subLayerFeatureCollection);
-                        }).catch(error => {
-                            logger.error(error);
-                            callback(error, featureCollection);
-                        });
-                    }).catch(error => {
-                        // Handle getMapping promise rejections so browser gets an error response instead of hanging
-                        logger.error(error);
-                        callback(error, featureCollection);
-                    });
-
-                }
             }
+
         }
     }
-    ;
 
     this.registerCustomIndexNameBuilder = function (indexer) {
         this.customIndexNameBuilder = indexer;
@@ -800,32 +755,30 @@ module.exports = function (koop) {
         return subLayerList;
     }
 
-    // function addDefaultReturnFields(feature, mapping, returnFields) {
-    //     for (let i = 0; i < returnFields.length; i++) {
-    //         let fieldPath = returnFields[i].split('.');
-    //
-    //         let mappingField = mapping[fieldPath[0]];
-    //         for (let pathIndex = 1; pathIndex < fieldPath.length; pathIndex++) {
-    //             if (mappingField.properties) {
-    //                 mappingField = mappingField.properties;
-    //             }
-    //             mappingField = mappingField[fieldPath[pathIndex]];
-    //         }
-    //         switch (mappingField.type) {
-    //             case "integer":
-    //                 feature.properties[returnFields[i]] = 0;
-    //                 break;
-    //             case "text":
-    //                 feature.properties[returnFields[i]] = '';
-    //                 break;
-    //             case "date":
-    //                 feature.properties[returnFields[i]] = moment().unix();
-    //                 break;
-    //
-    //         }
-    //     }
-    //     return feature;
-    // }
+    function normalizeGeometry(bbox, inSR) {
+        let topLeft = [bbox.xmin, bbox.ymax];
+        let bottomRight = [bbox.xmax, bbox.ymin];
+
+        if (typeof bbox === 'string') {
+            // arcmap
+            bbox = bbox.split(',');
+            topLeft = [Number(bbox[0]), Number(bbox[3])];
+            bottomRight = [Number(bbox[2]), Number(bbox[1])];
+        }
+
+        let bboxSR = inSR;
+        if (bbox.spatialReference && bbox.spatialReference.wkid) {
+            bboxSR = bbox.spatialReference.wkid;
+        }
+
+        return {
+            xmin: topLeft[0],
+            xmax: bottomRight[0],
+            ymin: bottomRight[0],
+            ymax: topLeft[1],
+            spatialReference: {wkid: bboxSR}
+        };
+    }
 
     function validateBounds(geometry) {
         let bbox = geometry;

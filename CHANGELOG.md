@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## UNRELEASED - 12-13-2021
+### Fixed
+* Now handles geometry sent in as a string with an inSR parameter for spatial reference
+
 ## [3.3.0] - 09-29-2021
 ### Added
 * Better field metadata based on Index mapping
