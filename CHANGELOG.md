@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## UNRELEASED - 12-13-2021
+## [3.3.1] - 12-13-2021
 ### Fixed
 * Now handles geometry sent in as a string with an inSR parameter for spatial reference
 
@@ -90,6 +90,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.3.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.1...v3.3.0
 [3.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.1.0...v3.2.0
