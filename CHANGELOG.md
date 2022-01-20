@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* allow passing templates from index config to feature layer
+* handle querying by object id
+
 ## [3.3.1] - 12-13-2021
 ### Fixed
 * Now handles geometry sent in as a string with an inSR parameter for spatial reference

@@ -99,6 +99,10 @@ module.exports = function (koop) {
             featureCollection.metadata.capabilities = indexConfig.capabilities;
         }
 
+        if (indexConfig.templates) {
+            featureCollection.metadata.templates = indexConfig.templates;
+        }
+
         if (customSymbolizer) {
             featureCollection.metadata.vt = customSymbolizer.vtStyle();
         } else if (indexConfig.vectorStyle) {
@@ -518,6 +522,21 @@ module.exports = function (koop) {
             }
         }
 
+        if (query.objectIds){
+            if(indexConfig.idField){
+                // terms query
+                let idTerms = {terms: {}};
+                idTerms.terms[indexConfig.idField] = query.objectIds;
+                queryBody.body.query.bool.must.push(idTerms);
+            } else {
+                // actual document ids
+                let idsQuery = {
+                    ids: { values: query.objectIds}
+                };
+                esQuery.body.query.bool.must.push(idsQuery);
+            }
+        }
+
         // Only set size attribute if maxRecords was passed in.
         if (maxRecords) {
             esQuery.body.size = maxRecords;
@@ -774,7 +793,7 @@ module.exports = function (koop) {
         return {
             xmin: topLeft[0],
             xmax: bottomRight[0],
-            ymin: bottomRight[0],
+            ymin: bottomRight[1],
             ymax: topLeft[1],
             spatialReference: {wkid: bboxSR}
         };
