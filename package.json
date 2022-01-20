@@ -18,7 +18,7 @@
     "@mapbox/geojson-rewind": "^0.5.0",
     "@mapbox/tilebelt": "^1.0.2",
     "flat": "^5.0.0",
-    "koop": "^4.2.0",
+    "koop": "^4.2.1",
     "moment": "2.20.1",
     "ngeohash": "^0.6.3",
     "proj4": "2.4.4",
