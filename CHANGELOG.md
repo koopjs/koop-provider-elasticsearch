@@ -2,10 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.3.2] - 01-20-2022
 ### Fixed
 * allow passing templates from index config to feature layer
 * handle querying by object id
+* issue causing incorrect bounding boxes in some cases
 
 ## [3.3.1] - 12-13-2021
 ### Fixed
@@ -95,6 +96,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.3.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.1...v3.3.2
 [3.3.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.1...v3.3.0
 [3.2.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.0...v3.2.1
