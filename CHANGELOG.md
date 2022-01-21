@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* geo_point with lat, lon properties shouldn't be returned as attributes.
+
 ## [3.3.2] - 01-20-2022
 ### Fixed
 * allow passing templates from index config to feature layer

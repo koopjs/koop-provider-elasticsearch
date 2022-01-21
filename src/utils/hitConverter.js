@@ -186,7 +186,7 @@ class HitConverter{
             // but if outFields was set it can be overridden.
             let hitFields = Object.keys(hit._source);
             for(let i=0; i<hitFields.length; i++){
-                if(hitFields[i] !== indexConfig.geometryField){
+                if(hitFields[i].split('.')[0] !== indexConfig.geometryField){
                     feature.properties[hitFields[i]] = hit._source[hitFields[i]];
                 }
             }
