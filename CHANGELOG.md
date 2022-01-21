@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.3.3] - 01-21-2022
 ### Fixed
 * geo_point with lat, lon properties shouldn't be returned as attributes.
 
@@ -100,6 +100,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.3.3]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.2...v3.3.3
 [3.3.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.1...v3.3.2
 [3.3.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.2.1...v3.3.0
