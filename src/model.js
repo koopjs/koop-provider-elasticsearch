@@ -530,7 +530,7 @@ module.exports = function (koop) {
                 // terms query
                 let idTerms = {terms: {}};
                 idTerms.terms[indexConfig.idField] = query.objectIds;
-                queryBody.body.query.bool.must.push(idTerms);
+                esQuery.body.query.bool.must.push(idTerms);
             } else {
                 // actual document ids
                 let idsQuery = {
