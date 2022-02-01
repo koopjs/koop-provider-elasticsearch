@@ -211,9 +211,6 @@ module.exports = function (koop) {
                 // console.log(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.client.search(esQuery);
                 searchResponse = searchResponse.body;
-                console.log('Query:');
-                console.log(JSON.stringify(esQuery, null, 2));
-                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis) / 1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
@@ -524,7 +521,9 @@ module.exports = function (koop) {
 
         if (query.objectIds){
             if(indexConfig.idField){
-                if(!Array.isArray(query.objectIds)){
+                if(!isNaN(query.objectIds)){
+                    query.objectIds = [query.objectIds];
+                } else if(!Array.isArray(query.objectIds)){
                     query.objectIds = query.objectIds.split(',').map(oid => oid.trim()).filter(x=>!!x);
                 }
                 // terms query
