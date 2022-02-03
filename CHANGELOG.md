@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.3.4] - 02-03-2022
 ### Fixed
 * Correctly handle all objectid query formats
 * Correctly handle polygon geometry filter
@@ -105,6 +105,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.3.4]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.3...v3.3.4
 [3.3.3]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.2...v3.3.3
 [3.3.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.1...v3.3.2
 [3.3.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.0...v3.3.1
