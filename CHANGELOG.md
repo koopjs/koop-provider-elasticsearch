@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Correctly handle all objectid query formats
+* Correctly handle polygon geometry filter
+
 ## [3.3.3] - 01-21-2022
 ### Fixed
 * geo_point with lat, lon properties shouldn't be returned as attributes.
