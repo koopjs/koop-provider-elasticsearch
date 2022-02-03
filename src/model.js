@@ -211,9 +211,6 @@ module.exports = function (koop) {
                 // console.log(JSON.stringify(esQuery, null, 2));
                 let searchResponse = await this.client.search(esQuery);
                 searchResponse = searchResponse.body;
-                console.log('Query:');
-                console.log(JSON.stringify(esQuery, null, 2));
-                console.log(`Got ES Response In: ${(Date.now().valueOf() - startESQueryMillis) / 1000} seconds`);
                 // let startParseMillis = Date.now().valueOf();
                 let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
                 logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
@@ -524,10 +521,15 @@ module.exports = function (koop) {
 
         if (query.objectIds){
             if(indexConfig.idField){
+                if(!isNaN(query.objectIds)){
+                    query.objectIds = [query.objectIds];
+                } else if(!Array.isArray(query.objectIds)){
+                    query.objectIds = query.objectIds.split(',').map(oid => oid.trim()).filter(x=>!!x);
+                }
                 // terms query
                 let idTerms = {terms: {}};
                 idTerms.terms[indexConfig.idField] = query.objectIds;
-                queryBody.body.query.bool.must.push(idTerms);
+                esQuery.body.query.bool.must.push(idTerms);
             } else {
                 // actual document ids
                 let idsQuery = {
@@ -666,12 +668,7 @@ module.exports = function (koop) {
                     distance: `${query.distance}${distanceConstants[query.units]}`
                 }
             };
-            if (query.geometry.spatialReference && query.geometry.spatialReference.wkid === 102100) {
-                let reprojPoint = proj.forward([query.geometry.x, query.geometry.y]);
-                geoFilter.geo_distance[indexConfig.geometryField] = reprojPoint;
-            } else {
-                geoFilter.geo_distance[indexConfig.geometryField] = [query.geometry.x, query.geometry.y];
-            }
+            geoFilter.geo_distance[indexConfig.geometryField] = [query.geometry.x, query.geometry.y];
         } else {
             let bbox = query.geometry;
             if (!bbox) {
@@ -695,10 +692,6 @@ module.exports = function (koop) {
 
             topLeft = [bbox.xmin, bbox.ymax];
             bottomRight = [bbox.xmax, bbox.ymin];
-            if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
-                topLeft = proj.forward([bbox.xmin, bbox.ymax]);
-                bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
-            }
 
             // check bounds
             topLeft[0] = Math.max(-180.0, topLeft[0]);
@@ -774,32 +767,64 @@ module.exports = function (koop) {
         return subLayerList;
     }
 
-    function normalizeGeometry(bbox, inSR) {
-        let topLeft = [bbox.xmin, bbox.ymax];
-        let bottomRight = [bbox.xmax, bbox.ymin];
+    function normalizeGeometry(geometry, inSR) {
 
-        if (typeof bbox === 'string') {
-            // arcmap
-            bbox = bbox.split(',');
-            topLeft = [Number(bbox[0]), Number(bbox[3])];
-            bottomRight = [Number(bbox[2]), Number(bbox[1])];
+        let spatialRef = inSR;
+        if (geometry.spatialReference && geometry.spatialReference.wkid) {
+            spatialRef = geometry.spatialReference.wkid;
         }
 
-        let bboxSR = inSR;
-        if (bbox.spatialReference && bbox.spatialReference.wkid) {
-            bboxSR = bbox.spatialReference.wkid;
+        if(geometry.xmin || typeof geometry === 'string'){
+            // is a bounding box
+            let topLeft = [geometry.xmin, geometry.ymax];
+            let bottomRight = [geometry.xmax, geometry.ymin];
+
+            if (typeof geometry === 'string') {
+                // arcmap
+                geometry = geometry.split(',');
+                topLeft = [Number(geometry[0]), Number(geometry[3])];
+                bottomRight = [Number(geometry[2]), Number(geometry[1])];
+            }
+
+            if (spatialRef === 102100) {
+                topLeft = proj.forward([geometry.xmin, geometry.ymax]);
+                bottomRight = proj.forward([geometry.xmax, geometry.ymin]);
+            }
+
+            return {
+                xmin: topLeft[0],
+                xmax: bottomRight[0],
+                ymin: bottomRight[1],
+                ymax: topLeft[1],
+                spatialReference: {wkid: 4326}
+            };
+        } else {
+            // actual geometry
+            if(spatialRef === 102100){
+                // convert
+                if(geometry.rings){
+                    geometry.rings = geometry.rings.map(ring => {
+                        return ring.map(coord => {
+                            return proj.forward(coord);
+                        });
+                    });
+                } else if (geometry.x){
+                    // point
+                    let reprojPoint = proj.forward([geometry.x, geometry.y]);
+                    geometry.x = reprojPoint[0];
+                    geometry.y = reprojPoint[1];
+                }
+            }
+
+            geometry.spatialReference = { wkid: 4326 };
+            return geometry;
         }
 
-        return {
-            xmin: topLeft[0],
-            xmax: bottomRight[0],
-            ymin: bottomRight[1],
-            ymax: topLeft[1],
-            spatialReference: {wkid: bboxSR}
-        };
     }
 
     function validateBounds(geometry) {
+        // if geometry is a bounding box, check it, otherwise create a bounding box from the geometry
+        // and then check that created bounding box.
         let bbox = geometry;
         if (bbox.ymax !== undefined) {
             if (bbox.xmax == null && bbox.xmin == null) {
@@ -822,18 +847,6 @@ module.exports = function (koop) {
 
         let topLeft = [bbox.xmin, bbox.ymax];
         let bottomRight = [bbox.xmax, bbox.ymin];
-
-        if (typeof bbox === 'string') {
-            // arcmap
-            bbox = bbox.split(',');
-            topLeft = [Number(bbox[0]), Number(bbox[3])];
-            bottomRight = [Number(bbox[2]), Number(bbox[1])];
-        }
-
-        if (bbox.spatialReference && bbox.spatialReference.wkid === 102100) {
-            topLeft = proj.forward([bbox.xmin, bbox.ymax]);
-            bottomRight = proj.forward([bbox.xmax, bbox.ymin]);
-        }
 
         // check bounds
         topLeft[0] = Math.max(-180.0, topLeft[0]);
