@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## UNRELEASED - 04-21-2022
+### Fixed
+* Set supportsPagination to false sense it is not supported
+
 ## [3.3.4] - 02-03-2022
 ### Fixed
 * Correctly handle all objectid query formats

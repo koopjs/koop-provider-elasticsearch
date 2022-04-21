@@ -91,7 +91,8 @@ module.exports = function (koop) {
             metadata: {
                 name: serviceName,
                 maxRecordCount: indexConfig.maxResults,
-                extent: extent
+                extent: extent,
+                supportsPagination: false
             }
         };
 
