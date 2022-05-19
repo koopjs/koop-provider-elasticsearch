@@ -15,10 +15,11 @@ const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
 const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
 const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
+const {GeoHexAggregation} = require('./subLayers/geoHexAggregation');
 
 module.exports = function (koop) {
     this.customSymbolizers = [];
-    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation()];
+    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation(), new GeoHexAggregation()];
     this.customIndexNameBuilder = undefined;
 
     this.setTimeExtent = function (featureCollection) {
@@ -132,7 +133,6 @@ module.exports = function (koop) {
                         this.setTimeExtent(featureCollection);
                     }
                 } catch (e) {
-                    console.error(e);
                     callback(e, featureCollection);
                 }
             }
@@ -279,7 +279,9 @@ module.exports = function (koop) {
                 }
 
                 // returnCountOnly only set. This appears to trigger the count response in featureserver
-                featureCollection.count = searchResponse.hits.hits.length;
+                if(!featureCollection.count){
+                    featureCollection.count = searchResponse.hits.hits.length;
+                }
 
                 // if there an offset
                 if (offset > 0) {
@@ -326,7 +328,6 @@ module.exports = function (koop) {
                         // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                         callback(null, subLayerFeatureCollection);
                     }).catch(error => {
-                        logger.error(error);
                         callback(error, featureCollection);
                     });
                 }).catch(error => {
