@@ -94,6 +94,10 @@ module.exports = function (koop) {
                 maxRecordCount: indexConfig.maxResults,
                 extent: extent,
                 supportsPagination: false
+            },
+            filtersApplied: {
+                where: true,
+                geometry: true
             }
         };
 
@@ -258,16 +262,7 @@ module.exports = function (koop) {
                 // This does not appear to fix the "requested provider has no "idField" assignment. This can cause errors in ArcGIS clients" error.
                 //featureCollection.metadata.idField = "OBJECTID";
 
-                if (!featureCollection.filtersApplied) {
-                    featureCollection.filtersApplied = {};
-                }
 
-                featureCollection.filtersApplied.where = true;
-
-                // we have already filtered the geometries using the incoming request. there are bugs regarding
-                // filtering by geometry, so we can turn it off and use elastic search's filtering.
-
-                featureCollection.filtersApplied.geometry = true;
                 // featureCollection.filtersApplied.projection = true;
 
                 if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {

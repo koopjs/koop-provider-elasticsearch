@@ -1,4 +1,5 @@
 const h3 = require('h3-js');
+const polygonSplitter = require('polygon-splitter');
 
 const NAME = "geohex_aggregation";
 
@@ -41,16 +42,16 @@ class GeoHexAggregation {
         this.aggregationFields = queryParams.customAggregations || this.aggConfig.options.aggregationFields;
         let hexConfig = queryParams.hexConfig || this.aggConfig.options.hexConfig;
         let offsetSRFactor = 1;
-        if(queryParams.geometry && queryParams.geometry.spatialReference && queryParams.geometry.spatialReference.wkid === 4326){
+        if(queryParams.inSR === 4326){
             offsetSRFactor = 0.00001;
         }
-        let resolution = hexConfig.find(hex => hex.offset * offsetSRFactor >= this.maxAllowableOffset).resolution || 0;
+        let resolution = hexConfig.find(hex => hex.offset * offsetSRFactor >= this.maxAllowableOffset)?.resolution || 0;
 
         try {
             let aggField = this.indexConfig.geometryField;
             let updatedQuery = this.updateQuery(query, aggField, resolution);
             let results = await this.queryAggregations(updatedQuery);
-            featureCollection.metadata.geometryType = "Polygon";
+            featureCollection.metadata.geometryType = "MultiPolygon";
             let returnFC = this.hitsToFeatureCollection(results, featureCollection, aggField);
 
             return Promise.resolve(returnFC);
@@ -103,10 +104,12 @@ class GeoHexAggregation {
                     // create shape
                     // let zxy = tileKey.split('/').map(val => Number(val));
                     let boundaryPoints = h3.h3ToGeoBoundary(h3Value);
+                    boundaryPoints.forEach(pointArray => pointArray.reverse());
                     feature.geometry = {
                         type: "Polygon",
-                        coordinates: [[...boundaryPoints, boundaryPoints[boundaryPoints.length-1]]]
+                        coordinates: [[...boundaryPoints, boundaryPoints[0]]]
                     };
+                    feature.geometry = this._splitPolygon(feature.geometry);
                     feature.properties.OBJECTID = h3Value;
                 } else if (key === 'doc_count') {
                     feature.properties.count = bucket[key];
@@ -134,6 +137,47 @@ class GeoHexAggregation {
             properties[fieldName] = 0;
         });
         return properties;
+    }
+
+    _splitPolygon(polygon){
+        let xmin=180, xmax=-180;
+        polygon.coordinates[0].forEach(point => {
+            xmin = Math.min(xmin, point[0]);
+            xmax = Math.max(xmax, point[0]);
+        });
+        if(xmin < 0 && xmax > 0){
+            // shift all points up 180
+            const coordinates = [polygon.coordinates[0].map(point => [point[0] > 0 ? point[0] - 180  : point[0] + 180, point [1]])];
+            // split at 0
+            const splitFeature = polygonSplitter({type: "Polygon", coordinates}, {
+                type: "LineString",
+                coordinates: [[0, -90], [0, 90]]
+            });
+            if(!splitFeature.geometry){
+                // doesn't cross the antimeridian
+                return polygon;
+            }
+            splitFeature.geometry.coordinates[0][0] = this._shiftPolygonRing(splitFeature.geometry.coordinates[0][0]);
+            splitFeature.geometry.coordinates[1][0] = this._shiftPolygonRing(splitFeature.geometry.coordinates[1][0]);
+            return splitFeature.geometry
+        } else {
+            return polygon;
+        }
+    }
+
+    _shiftPolygonRing(ring){
+        let isPositive = true;
+        ring.forEach(point => {
+            if(point[0] < 0){
+                isPositive = false;
+            }
+        });
+
+        if(isPositive){
+            return ring.map(point => [point[0] - 180, point[1]]);
+        } else {
+            return ring.map(point => [point[0] + 180, point[1]]);
+        }
     }
 }
 

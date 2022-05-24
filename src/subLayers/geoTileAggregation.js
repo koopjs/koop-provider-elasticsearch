@@ -43,7 +43,7 @@ class GeoTileAggregation {
         this.aggregationFields = queryParams.customAggregations || this.aggConfig.options.aggregationFields;
         let tileConfig = queryParams.tileConfig || this.aggConfig.options.tileConfig;
         let offsetSRFactor = 1;
-        if(queryParams.geometry && queryParams.geometry.spatialReference && queryParams.geometry.spatialReference.wkid === 4326){
+        if(queryParams.inSR === 4326){
             offsetSRFactor = 0.00001;
         }
         let precision = tileConfig.find(tile => tile.offset * offsetSRFactor >= this.maxAllowableOffset).precision || 0;
