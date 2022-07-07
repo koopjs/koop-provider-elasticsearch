@@ -1,24 +1,23 @@
-const tilebelt = require('@mapbox/tilebelt');
+const h3 = require('h3-js');
+const polygonSplitter = require('polygon-splitter');
 
-const NAME = "geotile_aggregation";
+const NAME = "geohex_aggregation";
 
 /**
- * Geo Tile Sub Layer Class
+ * Geo Hex Sub Layer Class
  *
  * Custom Query Params:
  * - customAggregations: JSON object with sub aggregations
- * - tileConfig: an array of objects like { "precision": #, "offset": value } where # is a number 0-29
- *                   and value is a number that matches against the maxAllowableOffset coming from the client.
- *                   These fields are used to do aggregation queries and build aggregation tiles
+ * - hexConfig:
  *
  * Configuration Object:
- *  - name: geotile_aggregation (required)
+ *  - name: geohex_aggregation (required)
  *  - options:
  *      - aggregationFields: custom elastic search aggregations which will be used as return fields
- *      - tileConfig: An array of objects { precision: [0-29], value: offset_value} the precision coincides with tile
+ *      - hexConfig: An array of objects { resolution: [0-15], offset: offset_value} the precision coincides with tile
  *        level and offset_value comes from the client
  */
-class GeoTileAggregation {
+class GeoHexAggregation {
     name = NAME;
 
     /**
@@ -41,18 +40,18 @@ class GeoTileAggregation {
         let queryParams = options.queryParameters;
         this.maxAllowableOffset = queryParams.maxAllowableOffset || 0;
         this.aggregationFields = queryParams.customAggregations || this.aggConfig.options.aggregationFields;
-        let tileConfig = queryParams.tileConfig || this.aggConfig.options.tileConfig;
+        let hexConfig = queryParams.hexConfig || this.aggConfig.options.hexConfig;
         let offsetSRFactor = 1;
         if(queryParams.inSR === 4326){
             offsetSRFactor = 0.00001;
         }
-        let precision = tileConfig.find(tile => tile.offset * offsetSRFactor >= this.maxAllowableOffset).precision || 0;
+        let resolution = hexConfig.find(hex => hex.offset * offsetSRFactor >= this.maxAllowableOffset)?.resolution || 0;
 
         try {
             let aggField = this.indexConfig.geometryField;
-            let updatedQuery = this.updateQuery(query, aggField, precision);
+            let updatedQuery = this.updateQuery(query, aggField, resolution);
             let results = await this.queryAggregations(updatedQuery);
-            featureCollection.metadata.geometryType = "Polygon";
+            featureCollection.metadata.geometryType = "MultiPolygon";
             let returnFC = this.hitsToFeatureCollection(results, featureCollection, aggField);
 
             return Promise.resolve(returnFC);
@@ -65,7 +64,7 @@ class GeoTileAggregation {
     updateQuery(query, aggField, precision=0) {
         let aggs = {
             agg: {
-                geotile_grid: {field: aggField, precision, size: this.indexConfig.maxResults},
+                geohex_grid: {field: aggField, precision, size: this.indexConfig.maxResults},
                 aggs: this.aggregationFields
             }
         };
@@ -89,6 +88,7 @@ class GeoTileAggregation {
 
     hitsToFeatureCollection(queryResults, featureCollection, aggField) {
         let totalHits = isNaN(queryResults.hits.total) ? queryResults.hits.total.value : queryResults.hits.total;
+        featureCollection.count = totalHits;
         let buckets = queryResults.aggregations.agg.buckets;
         for (let i = 0; i < buckets.length; i++) {
             let bucket = buckets[i];
@@ -100,11 +100,17 @@ class GeoTileAggregation {
             for (let j = 0; j < bucketKeys.length; j++) {
                 let key = bucketKeys[j];
                 if (key === 'key') {
-                    let tileKey = bucket[key];
+                    let h3Value = bucket[key];
                     // create shape
-                    let zxy = tileKey.split('/').map(val => Number(val));
-                    feature.geometry = tilebelt.tileToGeoJSON([zxy[1],zxy[2],zxy[0]]);//this.getTilePolygon(...zxy);
-                    feature.properties.OBJECTID = Number(zxy.join('')) % 2147483647;
+                    // let zxy = tileKey.split('/').map(val => Number(val));
+                    let boundaryPoints = h3.h3ToGeoBoundary(h3Value);
+                    boundaryPoints.forEach(pointArray => pointArray.reverse());
+                    feature.geometry = {
+                        type: "Polygon",
+                        coordinates: [[...boundaryPoints, boundaryPoints[0]]]
+                    };
+                    feature.geometry = this._splitPolygon(feature.geometry);
+                    feature.properties.OBJECTID = h3Value;
                 } else if (key === 'doc_count') {
                     feature.properties.count = bucket[key];
                 } else {
@@ -132,6 +138,47 @@ class GeoTileAggregation {
         });
         return properties;
     }
+
+    _splitPolygon(polygon){
+        let xmin=180, xmax=-180;
+        polygon.coordinates[0].forEach(point => {
+            xmin = Math.min(xmin, point[0]);
+            xmax = Math.max(xmax, point[0]);
+        });
+        if(xmin < 0 && xmax > 0){
+            // shift all points up 180
+            const coordinates = [polygon.coordinates[0].map(point => [point[0] > 0 ? point[0] - 180  : point[0] + 180, point [1]])];
+            // split at 0
+            const splitFeature = polygonSplitter({type: "Polygon", coordinates}, {
+                type: "LineString",
+                coordinates: [[0, -90], [0, 90]]
+            });
+            if(!splitFeature.geometry){
+                // doesn't cross the antimeridian
+                return polygon;
+            }
+            splitFeature.geometry.coordinates[0][0] = this._shiftPolygonRing(splitFeature.geometry.coordinates[0][0]);
+            splitFeature.geometry.coordinates[1][0] = this._shiftPolygonRing(splitFeature.geometry.coordinates[1][0]);
+            return splitFeature.geometry
+        } else {
+            return polygon;
+        }
+    }
+
+    _shiftPolygonRing(ring){
+        let isPositive = true;
+        ring.forEach(point => {
+            if(point[0] < 0){
+                isPositive = false;
+            }
+        });
+
+        if(isPositive){
+            return ring.map(point => [point[0] - 180, point[1]]);
+        } else {
+            return ring.map(point => [point[0] + 180, point[1]]);
+        }
+    }
 }
 
-module.exports = {NAME, GeoTileAggregation};
+module.exports = {NAME, GeoHexAggregation};
