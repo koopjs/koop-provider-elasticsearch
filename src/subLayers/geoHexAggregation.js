@@ -62,6 +62,13 @@ class GeoHexAggregation {
     }
 
     updateQuery(query, aggField, precision=0) {
+
+        if(undefined === query.body.query.bool.filter){
+            if(this.aggConfig.options.defaultExtent){
+                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+            }
+        }
+
         let aggs = {
             agg: {
                 geohex_grid: {field: aggField, precision, size: this.indexConfig.maxResults},

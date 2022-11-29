@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## UNRELEASED
+### Fixed
+* Hex and Tile aggregations were missing support for default extent like Geo Hash aggregations
+
 ## [3.4.0] - 07-07-2022
 ### Added 
 * Support for geohex_aggregation on Elastic Clusters with a hex aggregation license
