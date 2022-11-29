@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## UNRELEASED
+## [3.4.1] - 11-29-2022
 ### Fixed
 * Hex and Tile aggregations were missing support for default extent like Geo Hash aggregations
 
@@ -117,6 +117,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.4.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.5...v3.4.0
 [3.3.5]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.4...v3.3.5
 [3.3.4]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.3.3...v3.3.4
