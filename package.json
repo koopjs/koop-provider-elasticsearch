@@ -20,7 +20,7 @@
     "@mapbox/tilebelt": "^1.0.2",
     "flat": "^5.0.0",
     "h3-js": "^3.7.2",
-    "koop": "^4.2.2",
+    "koop": "^5.0.0",
     "moment": "2.20.1",
     "ngeohash": "^0.6.3",
     "polygon-splitter": "0.0.8",
