@@ -62,16 +62,14 @@ class GeoHexAggregation {
     }
 
     updateQuery(query, aggField, precision=0) {
-
-        if(undefined === query.body.query.bool.filter){
-            if(this.aggConfig.options.defaultExtent){
-                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
-            }
+        let bounds = undefined;
+        if(query.body?.query?.bool?.filter){
+            bounds = query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField];
+            query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField] = this._expandFilterBoundingBox(bounds, precision);
         }
-
         let aggs = {
             agg: {
-                geohex_grid: {field: aggField, precision, size: this.indexConfig.maxResults},
+                geohex_grid: {field: aggField, precision, size: this.indexConfig.maxResults, bounds},
                 aggs: this.aggregationFields
             }
         };
@@ -79,6 +77,24 @@ class GeoHexAggregation {
         query.body.size = 0;
 
         return query;
+    }
+
+    _expandFilterBoundingBox(boundingbox, precision){
+        //TODO: base this on the size of the hexagons
+        let xdiff = boundingbox.bottom_right[0] - boundingbox.top_left[0];
+        let ydiff = boundingbox.top_left[1] - boundingbox.bottom_right[1];
+        let expandx = xdiff * (0.17 - (0.01 * precision));
+        let expandy = ydiff * (0.17 - (0.01 * precision));
+        return {
+            top_left: [
+                Math.max(boundingbox.top_left[0] - expandx, -179.5),
+                Math.min(boundingbox.top_left[1] + expandy, 89.5)
+            ],
+            bottom_right: [
+                Math.min(boundingbox.bottom_right[0] + expandx, 179.5),
+                Math.max(boundingbox.bottom_right[1] - expandy, -89.5)
+            ]
+        };
     }
 
     async queryAggregations(query) {
@@ -117,7 +133,7 @@ class GeoHexAggregation {
                         coordinates: [[...boundaryPoints, boundaryPoints[0]]]
                     };
                     feature.geometry = this._splitPolygon(feature.geometry);
-                    feature.properties.OBJECTID = h3Value;
+                    // feature.properties.OBJECTID = h3Value;
                 } else if (key === 'doc_count') {
                     feature.properties.count = bucket[key];
                 } else {
