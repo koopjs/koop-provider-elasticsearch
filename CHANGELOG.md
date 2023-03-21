@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Hex Aggregations were getting clipped at some precisions
+
 ## [3.4.1] - 11-29-2022
 ### Fixed
 * Hex and Tile aggregations were missing support for default extent like Geo Hash aggregations
