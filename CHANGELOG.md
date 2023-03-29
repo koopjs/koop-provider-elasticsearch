@@ -4,7 +4,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [3.5.0] - 03-29-2023
 ### Added
-## Unreleased
 * Add Geo Line aggregation sub layer support
 * Add support for default extent to Hex aggregation layer
 
