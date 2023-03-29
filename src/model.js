@@ -1,7 +1,6 @@
 'use strict';
 const proj4 = require('proj4');
 const proj = proj4('GOOGLE', 'WGS84');
-const http = require('http');
 const HitConverter = require('./utils/hitConverter');
 const GeoHashUtil = require('./utils/geohashUtil');
 const IndexInfo = require('./utils/indexInfo');
@@ -16,10 +15,12 @@ const ElasticConnectUtil = require('./utils/elasticConnectUtil');
 const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
 const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
 const {GeoHexAggregation} = require('./subLayers/geoHexAggregation');
+const {GeoLineAggregation} = require('./subLayers/geoLineAggregation');
 
 module.exports = function (koop) {
     this.customSymbolizers = [];
-    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation(), new GeoHexAggregation()];
+    this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation(), new GeoHexAggregation(),
+        new GeoLineAggregation()];
     this.customIndexNameBuilder = undefined;
 
     this.setTimeExtent = function (featureCollection) {

@@ -62,6 +62,12 @@ class GeoHexAggregation {
     }
 
     updateQuery(query, aggField, precision=0) {
+        if(undefined === query.body.query.bool.filter){
+            if(this.aggConfig.options.defaultExtent){
+                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+            }
+        }
+
         let bounds = undefined;
         if(query.body?.query?.bool?.filter){
             bounds = query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField];
@@ -105,8 +111,6 @@ class GeoHexAggregation {
         } catch (e) {
             return Promise.reject(e);
         }
-
-
     }
 
     hitsToFeatureCollection(queryResults, featureCollection, aggField) {
