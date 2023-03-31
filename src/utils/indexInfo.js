@@ -39,26 +39,23 @@ class IndexInfo{
     getFields(mapping, idField, returnFields, editable = false){
         let fields = [];
         const fieldTemplate = {
-            name: "name",
+            name: "",
             type: "type",
-            alias: "alias",
+            alias: "",
             sqlType: "sqlTypeOther",
             domain: null,
             editable,
             defaultValue: null
         };
 
-        let keys = Object.keys(mapping);
-        keys = keys.filter(key => returnFields.includes(key));
-        keys.forEach(key => {
-            let field = {...fieldTemplate};
-            field.name = field.alias = key;
-            if(key === idField){
-                field.type = "Integer";
-                field.sqlType = "sqlTypeInteger";
-                fields.push(field);
-            } else if(mapping[key].type !== "geo_point" && mapping[key].type !== "geo_shape") {
-                switch (mapping[key].type) {
+        returnFields.forEach(returnField => {
+            let fieldParts = returnField.split('.');
+            let fieldMapping = mapping;
+            fieldParts.forEach(part => fieldMapping = fieldMapping[part].properties ? fieldMapping[part].properties : fieldMapping[part]);
+            if(fieldMapping.type){
+                let field = {...fieldTemplate};
+                field.name = field.alias = returnField;
+                switch (fieldMapping.type) {
                     case "keyword":
                     case "text":
                         field.type = "String";

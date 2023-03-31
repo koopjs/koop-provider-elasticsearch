@@ -2,6 +2,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Compatability with new Map Viewer - Smoother handling of input types from the new map viewer
+* Compatability with ArcGIS Pro improved. Point layers may still fail.
+* Attribution for nested ES objects comes through correctly now
+* Updated version of core koop libraries
+
 ## [3.5.0] - 03-29-2023
 ### Added
 * Add Geo Line aggregation sub layer support

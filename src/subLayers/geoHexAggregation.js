@@ -39,10 +39,11 @@ class GeoHexAggregation {
         let featureCollection = options.featureCollection;
         let queryParams = options.queryParameters;
         this.maxAllowableOffset = queryParams.maxAllowableOffset || 0;
+        this.maxAllowableOffset = (typeof this.maxAllowableOffset === "string") ? parseFloat(this.maxAllowableOffset) : this.maxAllowableOffset;
         this.aggregationFields = queryParams.customAggregations || this.aggConfig.options.aggregationFields;
         let hexConfig = queryParams.hexConfig || this.aggConfig.options.hexConfig;
         let offsetSRFactor = 1;
-        if(queryParams.inSR === 4326){
+        if(queryParams.inSR === 4326 || queryParams.inSR === undefined){
             offsetSRFactor = 0.00001;
         }
         let resolution = hexConfig.find(hex => hex.offset * offsetSRFactor >= this.maxAllowableOffset)?.resolution || 0;
