@@ -458,7 +458,7 @@ module.exports = function (koop) {
     }
 
     function buildESQuery(indexConfig, query, options) {
-        let maxRecords = options.maxRecords;
+        let maxRecords = (typeof options.maxRecords === 'string') ? parseInt(options.maxRecords) : options.maxRecords;
         let mapping = options.mapping;
         let customIndexNameBuilder = options.customIndexNameBuilder;
         var rawSearchKey = 'rawElasticQuery';
@@ -768,9 +768,24 @@ module.exports = function (koop) {
     function normalizeGeometry(geometry, inSR) {
 
         let spatialRef = inSR;
+        if(typeof geometry === "string"){
+            try {
+                let jsonGeom = JSON.parse(geometry);
+                geometry = jsonGeom;
+            } catch (e) {
+                logger.silly(`String passed as geometry that cannot be cast to JSON`);
+            }
+        }
+
         if (geometry.spatialReference && geometry.spatialReference.wkid) {
             spatialRef = geometry.spatialReference.wkid;
         }
+
+        if(typeof spatialRef === "string"){
+            spatialRef = parseInt(spatialRef);
+        }
+
+
 
         if(geometry.xmin || typeof geometry === 'string'){
             // is a bounding box
