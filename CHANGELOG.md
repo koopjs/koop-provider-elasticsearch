@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.5.1] - 03-31-2023
 ### Fixed
 * Compatability with new Map Viewer - Smoother handling of input types from the new map viewer
 * Compatability with ArcGIS Pro improved. Point layers may still fail.
@@ -133,6 +133,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.5.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.4.2...v3.5.0
 [3.4.2]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.4.1...v3.4.2
 [3.4.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.4.0...v3.4.1
