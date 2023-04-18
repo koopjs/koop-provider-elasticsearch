@@ -51,6 +51,10 @@ The following is a sample configuration file showing most capabilities
         "myService1": {
           "index": "indexName",
           "allowMultiPoint": false,
+          "caching": {
+            "enabled": true,
+            "seconds": 600
+          },
           "geometryField": "geometry.coordinates",
           "geometryType": "geo_point",
           "returnFields": [
@@ -132,6 +136,7 @@ _Index Properties_
 * `index` is the name of the ElasticSearch index
 * `isTable` treat this service as a table, ignoring geometry
 * `allowMultiPoint` is only important for point services and allows more than one point per feature
+* `caching` allows local in-memory caching. Only use this for services that have no more documents than your _maxResults_ setting
 * `geometryField` is the full location of the geometry
 * `geometryType` can be geo_point, Point, MultiPoint, Polyline, MultiLineString, Polygon and MultiPolygon
 * `reversePolygons` if the stored polygons do not follow the right-hand rule setting this to true will fix this. 

@@ -1,0 +1,167 @@
+{
+  "esConnections": {
+    "nav": {
+      "id": "nav",
+      "userName": "dhatcher",
+      "password": "XoF9znM***",
+      "hosts": [
+        "https://elastic-dev.usacespatial.us"
+      ],
+      "dev_vessel_positions": "geo.datetimestamp",
+      "indices": {
+        "vessel_tracks": {
+          "index": "dev_vessel_positions",
+          "capabilities": "Query",
+          "allowMultiPoint": true,
+          "vectorLayerMinimumOffset": 0,
+          "geometryField": "geo.geometry.centroid",
+          "geometryType": "geo_point",
+          "returnFields": [
+            "geo.layername",
+            "geo.navigationstatus.name",
+            "source_data.vesselname",
+            "source_data.callsign",
+            "source.mmsi",
+            "geo.datetimestamp"
+          ],
+          "dateFields": ["geo.datetimestamp"],
+          "vectorLayerID": 1,
+          "subLayers": [
+            {
+              "name": "geoline_aggregation",
+              "options": {
+                "termField": "source_data.mmsi",
+                "sortField": "geo.datetimestamp",
+                "ignoreGeoBoundary": true,
+                "aggregationFields": {
+                  "callsign": {
+                    "significant_terms": { "field":  "source_data.callsign", "size":  1}
+                  },
+                  "width_ft": {
+                    "max": {"field": "geo.width_ft"}
+                  },
+                  "length_ft": {
+                    "max": {"field":  "geo.length_ft"}
+                  }
+                },
+                "defaultExtent": {
+                  "geo_bounding_box": {
+                    "geo.geometry.centroid": {
+                      "top_left": [-88.24, 30.73],
+                      "bottom_right": [-88.0, 30.65]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "maxResults": 10000,
+          "searchFields": [],
+          "queryDefinition": "geo.datetimestamp BETWEEN '2022-01-01' AND '2022-01-02' AND source_data.callsign = 'WDD4452'",
+          "unused": " AND source_data.callsign = 'WDD4452'"
+        },
+        "marine": {
+          "index": "dev_hydrographic_surveybins",
+          "capabilities": "Query",
+          "allowMultiPoint": false,
+          "vectorLayerMinimumOffset": 0,
+          "geometryField": "geo.geometry.centroid",
+          "geometryType": "geo_point",
+          "returnFields": [
+            "geo.division.name",
+            "geo.channelarea.name",
+            "geo.depthmaintained_ft",
+            "geo.depth_ft",
+            "geo.district.name",
+            "geo.areatype",
+            "geo.datetimestamp"
+          ],
+          "dateFields": ["geo.datetimestamp"],
+          "vectorLayerID": 1,
+          "vectorStyle": {
+            "type": "fill",
+            "paint": {
+              "fill-color": {
+                "property": "mindepth",
+                "default": "#fff",
+                "stops": [
+                  [0, "#f00"],
+                  [40, "#00f"],
+                  [80, "#0f0"]]
+              }
+            }
+          },
+          "subLayers": [
+            {
+              "name": "geohex_aggregation",
+              "options": {
+                "hexConfig": [
+                  { "resolution": 15, "offset": 0.1 },
+                  { "resolution": 14, "offset": 0.5 },
+                  { "resolution": 13, "offset": 2 },
+                  { "resolution": 12, "offset": 3 },
+                  { "resolution": 12, "offset": 5 },
+                  { "resolution": 11, "offset": 10 },
+                  { "resolution": 11, "offset": 20 },
+                  { "resolution": 10, "offset": 70 },
+                  { "resolution": 9, "offset": 152 },
+                  { "resolution": 8, "offset": 175 },
+                  { "resolution": 7, "offset": 305 },
+                  { "resolution": 6, "offset": 611 },
+                  { "resolution": 5, "offset": 1222 },
+                  { "resolution": 4, "offset": 2445 },
+                  { "resolution": 3, "offset": 4891 },
+                  { "resolution": 2, "offset": 9783 },
+                  { "resolution": 1, "offset": 15000 },
+                  { "resolution": 0, "offset": 20000 }
+                ],
+                "aggregationFields": {
+                  "mindepth": {
+                    "min": {
+                      "field": "geo.depth_ft"
+                    }
+                  }
+                },
+                "defaultExtent": {
+                  "geo_bounding_box": {
+                    "geo.geometry.centroid": {
+                      "top_left": [-88.24, 30.73],
+                      "bottom_right": [-88.0, 30.65]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "maxResults": 10000,
+          "searchFields": [],
+          "queryDefinition": "geo.datetimestamp BETWEEN '2023-01-01' AND '2023-05-01'"
+        },
+        "boundaries": {
+          "index": "dev_usace_administrative_boundaries",
+          "name": "USACE Division Boundaries",
+          "caching": {
+            "enabled": true,
+            "seconds": 600
+          },
+          "queryDefinition": "geo.layername='divisions'",
+          "maxResults": 100,
+          "geometryField": "geo.geometry.generalized",
+          "reversePolygons": true,
+          "geometryType": "MultiPolygon",
+          "returnFields": ["geo.layername"],
+          "dateFields": [],
+          "vectorLayerMinimumOffset": 0,
+          "vectorLayerID": 0,
+          "vectorStyle": {
+            "type": "fill",
+            "paint": {
+              "fill-color": "#4697ff",
+              "fill-opacity": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
