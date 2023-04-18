@@ -18,6 +18,7 @@ const {GeoHexAggregation} = require('./subLayers/geoHexAggregation');
 const {GeoLineAggregation} = require('./subLayers/geoLineAggregation');
 
 module.exports = function (koop) {
+    this.dataCache = {};
     this.customSymbolizers = [];
     this.customSubLayers = [new GeoTileAggregation(), new GeoHashAggregation(), new GeoHexAggregation(),
         new GeoLineAggregation()];
@@ -60,7 +61,6 @@ module.exports = function (koop) {
                 'xmax': 20037507.067161843,
                 'ymax': 20037507.067161843,
                 'spatialReference': {
-                    'cs': 'pcs',
                     'wkid': 102100
                 }
             };
@@ -68,6 +68,7 @@ module.exports = function (koop) {
 
         if (req.url.includes('VectorTileServer')) {
             layerId = indexConfig.vectorLayerID ? indexConfig.vectorLayerID.toString() : "0";
+            req.query.inSR = 102100;
             if (req.params.x && req.params.y && req.params.z) {
                 const tileBBox = getTileBBox(req, customSymbolizer);
                 req.query.geometry = tileBBox;
@@ -158,138 +159,27 @@ module.exports = function (koop) {
         // logger.debug(JSON.stringify(query));
         if (layerId === "0" || undefined === layerId) {
             try {
-                let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
-                featureCollection.metadata.fields = this.indexInfo.getFields(mapping, indexConfig.idField, indexConfig.returnFields, !!indexConfig.editor);
-                let maxRecords = query.resultRecordCount;
-                if (!maxRecords || maxRecords > indexConfig.maxResults) {
-                    maxRecords = indexConfig.maxResults;
-                }
 
-                if (query.returnCountOnly && query.returnCountOnly === true) {
-                    let countQuery = buildESQuery(indexConfig, query, {
-                        mapping,
-                        customIndexNameBuilder: this.customIndexNameBuilder
-                    });
-                    this.client.count(countQuery).then(function (resp) {
-                        logger.debug("count resp:", resp);
-                        featureCollection.count = resp.body.count;
-                        callback(null, featureCollection);
-                    }, function (err) {
-                        logger.error(err.message);
-                        callback(err, featureCollection);
-                    });
-                    return;
-                }
+                // Caching
+                let cachingEnabled = indexConfig.caching?.enabled || false;
+                let cacheTTL = indexConfig.caching?.seconds * 1000 || 0;
 
-                let esQuery = buildESQuery(indexConfig, query, {
-                    maxRecords,
-                    mapping,
-                    customIndexNameBuilder: this.customIndexNameBuilder
-                });
-
-                // check for join shapes
-                let useJoinShapes = !!indexConfig.shapeIndex;
-                let joinShapeHits = null;
-                let hitConverter = new HitConverter(customSymbolizer);
-
-                if (useJoinShapes) {
-                    let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
-                    joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.client, query);
-                    hitConverter.setJoinShapes(joinShapeHits, joinConfig);
-
-                    let joinValues = joinShapeHits.map(hit => {
-                        let joinPath = joinConfig.joinField.split('.');
-                        let joinVal = hit._source[joinPath[0]];
-                        for (let i = 1; i < joinPath.length; i++) {
-                            if (joinPath[i] !== 'keyword') { // keyword is a property of a field and not a field itself
-                                joinVal = joinVal[joinPath[i]];
-                            }
-                        }
-                        return joinVal;
-                    });
-
-                    // update the query with the valid join values
-                    esQuery = updateQueryWithJoinValues(esQuery, joinValues, indexConfig);
-                }
-                // logger.debug(esQuery);
-                // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
-                let startESQueryMillis = Date.now().valueOf();
-                // console.log(JSON.stringify(esQuery, null, 2));
-                let searchResponse = await this.client.search(esQuery);
-                searchResponse = searchResponse.body;
-                // let startParseMillis = Date.now().valueOf();
-                let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
-                logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
-
-                for (let i = 0; i < searchResponse.hits.hits.length; i++) {
-                    try {
-                        let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig,
-                            {
-                                mapping: mapping,
-                                maxAllowableOffset: query.maxAllowableOffset
-                            });
-                        if (feature) {
-                            featureCollection.features.push(feature);
-                        }
-                    } catch (e) {
-                        logger.warn(`Failed to parse ${JSON.stringify(searchResponse.hits.hits[i])} with following error:`);
-                        logger.error(e);
+                try {
+                    if (cachingEnabled && cacheTTL && this.dataCache[esId][serviceName]?.time >= Date.now().valueOf() - cacheTTL) {
+                        logger.info(`${esId}/${serviceName} has a valid cache`);
+                        featureCollection = this.dataCache[esId][serviceName].featureCollection;
                     }
-
-                }
-                // logger.debug(`Parsed Features ${featureCollection.features.length} In: ${(Date.now().valueOf() - startParseMillis)/1000} seconds`);
-                // logger.debug(`Total parsed features: ${featureCollection.features.length}`);
-                //logger.debug("Counts were from query: " + JSON.stringify(esQuery.body.query));
-
-                // if an result offset is specified use it, otherwise the offset is 0
-                let offset = query.resultOffset;
-                if (!offset) {
-                    offset = 0;
+                } catch (e) {
+                    // ignore
                 }
 
-                // Set the returned features limit flags
-                if ((totalHits - offset) > maxRecords) {
-                    logger.verbose(`(totalHits - offset) > maxRecords: ${(totalHits - offset) > maxRecords}`);
-
-                    // Below both of these flags need to be set. Setting limitExceeded means the limit we determined
-                    // was exceeded, and filtersApplied.limit tells featureserver plugin that we are limiting the features
-                    // so that it will take into account the limitExceeded flag we set in metadata.
-                    featureCollection.metadata.limitExceeded = true;
-                    featureCollection.filtersApplied = {
-                        limit: true
-                    };
-                }
-
-                // This does not appear to fix the "requested provider has no "idField" assignment. This can cause errors in ArcGIS clients" error.
-                //featureCollection.metadata.idField = "OBJECTID";
-
-
-                // featureCollection.filtersApplied.projection = true;
-
-                if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {
-                    featureCollection.metadata.geometryType = "MultiPoint";
-                } else if (featureCollection.features.length && featureCollection.features[0].geometry !== undefined) {
-                    featureCollection.metadata.geometryType = featureCollection.features[0].geometry.type;
-                } else {
-                    featureCollection.metadata.geometryType = indexConfig.geometryType;
-                }
-
-                // returnCountOnly only set. This appears to trigger the count response in featureserver
-                if(!featureCollection.count){
-                    featureCollection.count = searchResponse.hits.hits.length;
-                }
-
-                // if there an offset
-                if (offset > 0) {
-                    featureCollection.filtersApplied.offset = true;
-                }
-
-                if (indexConfig.reversePolygons) {
-                    featureCollection = rewind(featureCollection);
-                }
+                if (featureCollection.features.length === 0) { // no cache
+                    featureCollection = await this.setFeatureCollectionDynamically({esId, indexConfig, query, customSymbolizer, serviceName, featureCollection});
+                }// end of cache not being set
 
                 let returnObject = {layers: [featureCollection]};
                 if (indexConfig.subLayers && indexConfig.subLayers.length && undefined === layerId) {
+                    let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
                     const subLayers = buildDefaultSubLayers(indexConfig, mapping, this.customSubLayers, query);
                     returnObject.layers = returnObject.layers.concat(subLayers);
                     // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
@@ -337,6 +227,155 @@ module.exports = function (koop) {
         }
     }
 
+    this.setFeatureCollectionDynamically = async function (options) {
+        const {esId, indexConfig, query, customSymbolizer, serviceName, featureCollection} = options;
+        let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
+        featureCollection.metadata.fields = this.indexInfo.getFields(mapping, indexConfig.idField, indexConfig.returnFields, !!indexConfig.editor);
+        let maxRecords = query.resultRecordCount;
+        if (!maxRecords || maxRecords > indexConfig.maxResults) {
+            maxRecords = indexConfig.maxResults;
+        }
+
+        if (query.returnCountOnly && query.returnCountOnly === true) {
+            let countQuery = buildESQuery(indexConfig, query, {
+                mapping,
+                customIndexNameBuilder: this.customIndexNameBuilder
+            });
+            this.client.count(countQuery).then(function (resp) {
+                logger.debug("count resp:", resp);
+                featureCollection.count = resp.body.count;
+                callback(null, featureCollection);
+            }, function (err) {
+                logger.error(err.message);
+                callback(err, featureCollection);
+            });
+            return;
+        }
+
+        let esQuery = buildESQuery(indexConfig, query, {
+            maxRecords,
+            mapping,
+            customIndexNameBuilder: this.customIndexNameBuilder,
+            isCacheQuery: indexConfig.caching?.enabled || false
+        });
+
+        // check for join shapes
+        let useJoinShapes = !!indexConfig.shapeIndex;
+        let joinShapeHits = null;
+        let hitConverter = new HitConverter(customSymbolizer);
+
+        if (useJoinShapes) {
+            let joinConfig = this.esConfig.shapeIndices[indexConfig.shapeIndex.name];
+            joinShapeHits = await queryJoinShapes(indexConfig.shapeIndex.name, null, joinConfig, this.client, query);
+            hitConverter.setJoinShapes(joinShapeHits, joinConfig);
+
+            let joinValues = joinShapeHits.map(hit => {
+                let joinPath = joinConfig.joinField.split('.');
+                let joinVal = hit._source[joinPath[0]];
+                for (let i = 1; i < joinPath.length; i++) {
+                    if (joinPath[i] !== 'keyword') { // keyword is a property of a field and not a field itself
+                        joinVal = joinVal[joinPath[i]];
+                    }
+                }
+                return joinVal;
+            });
+
+            // update the query with the valid join values
+            esQuery = updateQueryWithJoinValues(esQuery, joinValues, indexConfig);
+        }
+        // logger.debug(esQuery);
+        // logger.debug(`Build ES Query In: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
+        let startESQueryMillis = Date.now().valueOf();
+        // console.log(JSON.stringify(esQuery, null, 2));
+        let searchResponse = await this.client.search(esQuery);
+        searchResponse = searchResponse.body;
+        // let startParseMillis = Date.now().valueOf();
+        let totalHits = isNaN(searchResponse.hits.total) ? searchResponse.hits.total.value : searchResponse.hits.total;
+        logger.debug("Returned " + searchResponse.hits.hits.length + " Features out of a total of " + totalHits);
+
+        for (let i = 0; i < searchResponse.hits.hits.length; i++) {
+            try {
+                let feature = hitConverter.featureFromHit(searchResponse.hits.hits[i], indexConfig,
+                    {
+                        mapping: mapping,
+                        maxAllowableOffset: query.maxAllowableOffset
+                    });
+                if (feature) {
+                    featureCollection.features.push(feature);
+                }
+            } catch (e) {
+                logger.warn(`Failed to parse ${JSON.stringify(searchResponse.hits.hits[i])} with following error:`);
+                logger.error(e);
+            }
+
+        }
+        // logger.debug(`Parsed Features ${featureCollection.features.length} In: ${(Date.now().valueOf() - startParseMillis)/1000} seconds`);
+        // logger.debug(`Total parsed features: ${featureCollection.features.length}`);
+        //logger.debug("Counts were from query: " + JSON.stringify(esQuery.body.query));
+
+        // if an result offset is specified use it, otherwise the offset is 0
+        let offset = query.resultOffset;
+        if (!offset) {
+            offset = 0;
+        }
+
+        // Set the returned features limit flags
+        if ((totalHits - offset) > maxRecords) {
+            logger.verbose(`(totalHits - offset) > maxRecords: ${(totalHits - offset) > maxRecords}`);
+
+            // Below both of these flags need to be set. Setting limitExceeded means the limit we determined
+            // was exceeded, and filtersApplied.limit tells featureserver plugin that we are limiting the features
+            // so that it will take into account the limitExceeded flag we set in metadata.
+            featureCollection.metadata.limitExceeded = true;
+            featureCollection.filtersApplied = {
+                limit: true
+            };
+        }
+
+        // This does not appear to fix the "requested provider has no "idField" assignment. This can cause errors in ArcGIS clients" error.
+        //featureCollection.metadata.idField = "OBJECTID";
+
+
+        // featureCollection.filtersApplied.projection = true;
+
+        if (indexConfig.geometryType === "geo_point" && indexConfig.allowMultiPoint === true) {
+            featureCollection.metadata.geometryType = "MultiPoint";
+        } else if (featureCollection.features.length && featureCollection.features[0].geometry !== undefined) {
+            featureCollection.metadata.geometryType = featureCollection.features[0].geometry.type;
+        } else {
+            featureCollection.metadata.geometryType = indexConfig.geometryType;
+        }
+
+        // returnCountOnly only set. This appears to trigger the count response in featureserver
+        if (!featureCollection.count) {
+            featureCollection.count = searchResponse.hits.hits.length;
+        }
+
+        // if there is an offset
+        if (offset > 0) {
+            featureCollection.filtersApplied.offset = true;
+        }
+
+        if (indexConfig.reversePolygons) {
+            featureCollection = rewind(featureCollection);
+        }
+
+        // Cache the feature collection if in use
+        if (indexConfig.caching?.enabled) {
+            featureCollection.filtersApplied.geometry = false;
+            featureCollection.filtersApplied.where = false;
+            if (!this.dataCache[esId]) {
+                this.dataCache[esId] = {}
+            }
+            this.dataCache[esId][serviceName] = {
+                featureCollection,
+                time: Date.now().valueOf()
+            };
+        }
+
+        return featureCollection;
+    }
+
     this.registerCustomIndexNameBuilder = function (indexer) {
         this.customIndexNameBuilder = indexer;
     }
@@ -353,37 +392,6 @@ module.exports = function (koop) {
         return this.customSymbolizers.find(symbolizer => {
             return symbolizer.name === indexConfig.customSymbolizer
         });
-    }
-
-
-    async function queryHashAggregations(indexConfig, mapping, esQuery, geohashUtil, esClient) {
-        // just aggs, no need to get documents back
-        esQuery.body.size = 1;
-        esQuery.body.aggregations = {
-            agg_grid: {
-                geohash_grid: {
-                    field: indexConfig.geometryField,
-                    precision: geohashUtil.precision
-                }
-            }
-        };
-        try {
-            let result = await esClient.search(esQuery);
-            let response = result.body;
-            let geohashFeatures = [];
-            let hitConverter = new HitConverter();
-            for (let i = 0; i < response.aggregations.agg_grid.buckets.length; i++) {
-                let feature = hitConverter.featureFromGeoHashBucket(response.aggregations.agg_grid.buckets[i],
-                    response.hits.hits[0], indexConfig, mapping, esQuery.body.query.bool);
-                if (feature) {
-                    geohashFeatures.push(feature);
-                }
-            }
-            return Promise.resolve(geohashFeatures);
-        } catch (e) {
-            logger.error(e);
-            return Promise.reject(e);
-        }
     }
 
     function tile2long(x, z) {
@@ -461,14 +469,15 @@ module.exports = function (koop) {
         let maxRecords = (typeof options.maxRecords === 'string') ? parseInt(options.maxRecords) : options.maxRecords;
         let mapping = options.mapping;
         let customIndexNameBuilder = options.customIndexNameBuilder;
-        var rawSearchKey = 'rawElasticQuery';
+        let isCacheQuery = options.isCacheQuery || false;
+        let rawSearchKey = 'rawElasticQuery';
         let indexName = indexConfig.index;
         if (indexConfig.hasOwnProperty("indexNameConfig")) {
             if (customIndexNameBuilder) {
                 indexName = customIndexNameBuilder(indexConfig, query);
             }
         }
-        var esQuery = {
+        let esQuery = {
             index: indexName,
             ignore_unavailable: true,
             body: {
@@ -494,94 +503,105 @@ module.exports = function (koop) {
             esQuery.body.query.bool.must.push({exists: {field: indexConfig.geometryField}});
         }
 
-        // time aware data
-        if (query.time && indexConfig.timeInfo) {
-            let timeVals = query.time.split(',');
-            if (timeVals.length === 2) {
-                let startTimeRange = {
-                    range: {}
-                };
-                startTimeRange.range[indexConfig.timeInfo.startTimeField] = {
-                    gte: timeVals[0]
-                };
-
-                let endTimeRange = {
-                    range: {}
-                };
-                endTimeRange.range[indexConfig.timeInfo.endTimeField] = {
-                    lte: timeVals[1]
-                };
-
-                esQuery.body.query.bool.must.push(startTimeRange);
-                esQuery.body.query.bool.must.push(endTimeRange);
-            }
-        }
-
-        if (query.objectIds){
-            if(indexConfig.idField){
-                if(!isNaN(query.objectIds)){
-                    query.objectIds = [query.objectIds];
-                } else if(!Array.isArray(query.objectIds)){
-                    query.objectIds = query.objectIds.split(',').map(oid => oid.trim()).filter(x=>!!x);
-                }
-                // terms query
-                let idTerms = {terms: {}};
-                idTerms.terms[indexConfig.idField] = query.objectIds;
-                esQuery.body.query.bool.must.push(idTerms);
-            } else {
-                // actual document ids
-                let idsQuery = {
-                    ids: { values: query.objectIds}
-                };
-                esQuery.body.query.bool.must.push(idsQuery);
-            }
-        }
-
         // Only set size attribute if maxRecords was passed in.
         if (maxRecords) {
             esQuery.body.size = maxRecords;
         }
 
-        if (query.where && query.where.indexOf(rawSearchKey) > -1) {
-            logger.debug("Original Where Clause: \n" + query.where);
-            //get a substring after the search key, then get everything to the right of the first equal sign and left
-            //of the next &.  This should be the raw elastic query object
-            var elasticQueryString = query.where.slice(query.where.indexOf(rawSearchKey)).split(' AND')[0];
-            var elasticQueryVal = elasticQueryString.split('=')[1];
-            if (elasticQueryVal[elasticQueryVal.length - 1] === ')') {
-                elasticQueryVal = elasticQueryVal.slice(0, elasticQueryVal.length - 1);
+        // when caching, keep anything other than a configured query out of the ES query.
+        if (!isCacheQuery) {
+            // time aware data
+            if (query.time && indexConfig.timeInfo) {
+                let timeVals = query.time.split(',');
+                if (timeVals.length === 2) {
+                    let startTimeRange = {
+                        range: {}
+                    };
+                    startTimeRange.range[indexConfig.timeInfo.startTimeField] = {
+                        gte: timeVals[0]
+                    };
+
+                    let endTimeRange = {
+                        range: {}
+                    };
+                    endTimeRange.range[indexConfig.timeInfo.endTimeField] = {
+                        lte: timeVals[1]
+                    };
+
+                    esQuery.body.query.bool.must.push(startTimeRange);
+                    esQuery.body.query.bool.must.push(endTimeRange);
+                }
             }
-            logger.debug("Extracted Raw Elastic Query: \n" + elasticQueryVal);
-            esQuery.body.query = Object.assign(esQuery.body.query, JSON.parse(elasticQueryVal));
 
-            //remove this part of the where clause
-            query.where = query.where.replace('(' + elasticQueryString + ' AND ', '');
-            query.where = query.where.replace(elasticQueryString, '');
-
-            //check for redundant parens
-            if (query.where[0] === '(') {
-                query.where = query.where.substring(1, query.where.length - 1);
+            if (query.objectIds) {
+                if (indexConfig.idField) {
+                    if (!isNaN(query.objectIds)) {
+                        query.objectIds = [query.objectIds];
+                    } else if (!Array.isArray(query.objectIds)) {
+                        query.objectIds = query.objectIds.split(',').map(oid => oid.trim()).filter(x => !!x);
+                    }
+                    // terms query
+                    let idTerms = {terms: {}};
+                    idTerms.terms[indexConfig.idField] = query.objectIds;
+                    esQuery.body.query.bool.must.push(idTerms);
+                } else {
+                    // actual document ids
+                    let idsQuery = {
+                        ids: {values: query.objectIds}
+                    };
+                    esQuery.body.query.bool.must.push(idsQuery);
+                }
             }
-            logger.debug("Remaining where clause: \n" + query.where);
-        }
 
-        // set the elasticsearch 'from' to the resultOffset of the query to support pagination.
-        if (query.resultOffset) {
-            esQuery.body.from = query.resultOffset;
-        }
+            if (query.where && query.where.indexOf(rawSearchKey) > -1) {
+                logger.debug("Original Where Clause: \n" + query.where);
+                //get a substring after the search key, then get everything to the right of the first equal sign and left
+                //of the next &.  This should be the raw elastic query object
+                var elasticQueryString = query.where.slice(query.where.indexOf(rawSearchKey)).split(' AND')[0];
+                var elasticQueryVal = elasticQueryString.split('=')[1];
+                if (elasticQueryVal[elasticQueryVal.length - 1] === ')') {
+                    elasticQueryVal = elasticQueryVal.slice(0, elasticQueryVal.length - 1);
+                }
+                logger.debug("Extracted Raw Elastic Query: \n" + elasticQueryVal);
+                esQuery.body.query = Object.assign(esQuery.body.query, JSON.parse(elasticQueryVal));
 
-        var whereParser = new WhereParser();
+                //remove this part of the where clause
+                query.where = query.where.replace('(' + elasticQueryString + ' AND ', '');
+                query.where = query.where.replace(elasticQueryString, '');
+
+                //check for redundant parens
+                if (query.where[0] === '(') {
+                    query.where = query.where.substring(1, query.where.length - 1);
+                }
+                logger.debug("Remaining where clause: \n" + query.where);
+            }
+
+            // set the elasticsearch 'from' to the resultOffset of the query to support pagination.
+            if (query.resultOffset) {
+                esQuery.body.from = query.resultOffset;
+            }
+        } // of caching not enabled
+
+        let whereParser = new WhereParser();
         if (query.where || indexConfig.queryDefinition) {
 
             // server-side we can apply a query definition to simplify a layer's output via the queryDefinition index
             // config property. we append to any existing request where clause.
-            var finalQuery;
+            let finalQuery;
             if (query.where && query.where !== "" && indexConfig.queryDefinition) {
                 finalQuery = "(" + query.where + ") AND " + indexConfig.queryDefinition;
             } else if (indexConfig.queryDefinition) {
                 finalQuery = indexConfig.queryDefinition;
             } else {
                 finalQuery = query.where;
+            }
+
+            if (isCacheQuery) {
+                if (indexConfig.queryDefinition) {
+                    finalQuery = indexConfig.queryDefinition;
+                } else {
+                    finalQuery = "1=1";
+                }
             }
 
             var boolClause = whereParser.parseWhereClause(finalQuery, indexConfig.dateFields, indexConfig.returnFields, indexConfig.mapReturnValues, mapping);
@@ -604,7 +624,7 @@ module.exports = function (koop) {
 
         }
 
-        if (query.geometry && indexConfig.geometryField) { // don't bother if no geometry from the original index
+        if (query.geometry && indexConfig.geometryField && !isCacheQuery) { // don't bother if no geometry from the original index or we're doing caching
 
             let geoFilter = buildGeoFilter(query, indexConfig);
             if (geoFilter) {
@@ -635,7 +655,7 @@ module.exports = function (koop) {
 
         // If it isn't a return count only request, then we can specify
         // which columns to return using the ArcGIS outFields parameter
-        if (query.returnCountOnly !== true) {
+        if (query.returnCountOnly !== true || isCacheQuery) {
 
             // handle outFields so that only the requested fields are returned
             if (query.outFields && query.outFields !== "*") {
@@ -768,7 +788,7 @@ module.exports = function (koop) {
     function normalizeGeometry(geometry, inSR) {
 
         let spatialRef = inSR;
-        if(typeof geometry === "string"){
+        if (typeof geometry === "string") {
             try {
                 let jsonGeom = JSON.parse(geometry);
                 geometry = jsonGeom;
@@ -781,13 +801,12 @@ module.exports = function (koop) {
             spatialRef = geometry.spatialReference.wkid;
         }
 
-        if(typeof spatialRef === "string"){
+        if (typeof spatialRef === "string") {
             spatialRef = parseInt(spatialRef);
         }
 
 
-
-        if(geometry.xmin || typeof geometry === 'string'){
+        if (geometry.xmin || typeof geometry === 'string') {
             // is a bounding box
             let topLeft = [geometry.xmin, geometry.ymax];
             let bottomRight = [geometry.xmax, geometry.ymin];
@@ -813,15 +832,15 @@ module.exports = function (koop) {
             };
         } else {
             // actual geometry
-            if(spatialRef === 102100){
+            if (spatialRef === 102100) {
                 // convert
-                if(geometry.rings){
+                if (geometry.rings) {
                     geometry.rings = geometry.rings.map(ring => {
                         return ring.map(coord => {
                             return proj.forward(coord);
                         });
                     });
-                } else if (geometry.x){
+                } else if (geometry.x) {
                     // point
                     let reprojPoint = proj.forward([geometry.x, geometry.y]);
                     geometry.x = reprojPoint[0];
@@ -829,7 +848,7 @@ module.exports = function (koop) {
                 }
             }
 
-            geometry.spatialReference = { wkid: 4326 };
+            geometry.spatialReference = {wkid: 4326};
             return geometry;
         }
 

@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 * Attribution for nested ES objects comes through correctly now
 * Updated version of core koop libraries
 
+## Unreleased 
+### Added
+* Caching support. If a layer is marked for caching then the main layer and all sublayers will use a cached version of the data when available.
+
 ## [3.5.0] - 03-29-2023
 ### Added
 * Add Geo Line aggregation sub layer support
