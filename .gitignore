@@ -5,3 +5,4 @@ appConfig.json
 cert.pem
 key.pem
 .idea/
+config/
