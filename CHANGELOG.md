@@ -12,6 +12,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased 
 ### Added
 * Caching support. If a layer is marked for caching then the main layer and all sublayers will use a cached version of the data when available.
+* Support for setting the maximum number of results for a layer info request (maxLayerInfoResults). 
+ Setting this to a low number can dramatically improve initial layer load times.  Do not use this on layers with caching.
 
 ## [3.5.0] - 03-29-2023
 ### Added

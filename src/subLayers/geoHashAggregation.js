@@ -59,8 +59,11 @@ class GeoHashAggregation {
     }
 
     updateQuery(query, aggField, precision=0) {
-
+        let size = this.indexConfig.maxResults;
         if(undefined === query.body.query.bool.filter){
+            if(this.indexConfig.maxLayerInfoResults){
+                size = this.indexConfig.maxLayerInfoResults;
+            }
             if(this.aggConfig.options.defaultExtent){
                 query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
             }
@@ -89,10 +92,11 @@ class GeoHashAggregation {
             agg_grid: {
                 geohash_grid: {
                     field: this.indexConfig.geometryField,
-                    precision: precision
-                }
-            },
-            aggs: this.aggregationFields
+                    precision: precision,
+                    size
+                },
+                aggs: this.aggregationFields
+            }
         };
         query.body.size = 1;
 

@@ -292,7 +292,7 @@ class HitConverter{
         Object.assign(feature.properties, sampleFeature.properties);
 
         feature.properties.OBJECTID = this.objectIDFromKey(bucket.key);
-        console.log(`OID ${feature.properties.OBJECTID}  Count: ${feature.properties.count}`);
+        // console.log(`OID ${feature.properties.OBJECTID}  Count: ${feature.properties.count}`);
 
 
         if(bbox[0] === -90 || bbox[0] === 90){

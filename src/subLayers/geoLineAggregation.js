@@ -37,14 +37,18 @@ class GeoLineAggregation {
     }
 
     updateQuery(query) {
+        let size = this.indexConfig.maxResults;
         if(undefined === query.body.query.bool.filter){
+            if(this.indexConfig.maxLayerInfoResults){
+                size = this.indexConfig.maxLayerInfoResults;
+            }
             if(this.aggConfig.options.defaultExtent){
                 query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
             }
         }
         let aggs = {};
         aggs.agg = {
-            terms: {field: this.aggConfig.options.termField, size: this.indexConfig.maxResults}
+            terms: {field: this.aggConfig.options.termField, size}
         };
 
         if(!this.aggConfig.options.ignoreGeoBoundary){
@@ -66,7 +70,7 @@ class GeoLineAggregation {
 
     async queryAggregations(query) {
         try {
-            console.log(JSON.stringify(query, null, 2))
+            // console.log(JSON.stringify(query, null, 2))
             let searchResponse = await this.esClient.search(query);
             if(this.aggConfig.options.ignoreGeoBoundary) {
                 searchResponse = await this.performUnboundedSearch(searchResponse, query);
