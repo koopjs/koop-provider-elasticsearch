@@ -70,7 +70,8 @@ The following is a sample configuration file showing most capabilities
           "subLayers": [
             {"name": "geohash"}
           ],
-          "maxResults": 1000
+          "maxResults": 1000,
+          "maxLayerInfoResults": 1
         },
         "tableService": {
           "index": "indexNoShape",
@@ -146,6 +147,7 @@ Polygons that do not follow the right-hand rule will not be displayed as feature
 * `idField` if the index includes a field that can be treated as the OBJECTID field, this should be set
 * `subLayers` any sub-layers to be used. Provided sub layers are `geohash_aggregation` and `geotile_aggregation` but custom subLayers may be used here as well.
 * `maxResults` the maximum features returned from a single request
+* `maxLayerInfoResults` maximum number of features to return for a layer info request (Normally 1) _NOTE:_ Do not use this on a layer with caching enabled.
 * `shapeIndex` if the service will join to a shapeIndex for geometry list the name of the index (defined in 
 `shapeIndices`) and the joinField from this index.
 * `vectorLayerID` the 0 based index of the subLayer to use for vector output

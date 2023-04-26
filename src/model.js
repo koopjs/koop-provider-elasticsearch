@@ -16,6 +16,7 @@ const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
 const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
 const {GeoHexAggregation} = require('./subLayers/geoHexAggregation');
 const {GeoLineAggregation} = require('./subLayers/geoLineAggregation');
+const index = require("polygon-splitter");
 
 module.exports = function (koop) {
     this.dataCache = {};
@@ -228,7 +229,7 @@ module.exports = function (koop) {
     }
 
     this.setFeatureCollectionDynamically = async function (options) {
-        const {esId, indexConfig, query, customSymbolizer, serviceName, featureCollection} = options;
+        let {esId, indexConfig, query, customSymbolizer, serviceName, featureCollection} = options;
         let mapping = await this.indexInfo.getMapping(esId, indexConfig.index, indexConfig.mapping);
         featureCollection.metadata.fields = this.indexInfo.getFields(mapping, indexConfig.idField, indexConfig.returnFields, !!indexConfig.editor);
         let maxRecords = query.resultRecordCount;
@@ -236,7 +237,7 @@ module.exports = function (koop) {
             maxRecords = indexConfig.maxResults;
         }
 
-        if (query.returnCountOnly && query.returnCountOnly === true) {
+        if (query?.returnCountOnly === true) {
             let countQuery = buildESQuery(indexConfig, query, {
                 mapping,
                 customIndexNameBuilder: this.customIndexNameBuilder
@@ -258,6 +259,10 @@ module.exports = function (koop) {
             customIndexNameBuilder: this.customIndexNameBuilder,
             isCacheQuery: indexConfig.caching?.enabled || false
         });
+
+        if(!query.geometry && (!query.where || query.where === "1=1") && indexConfig.maxLayerInfoResults){
+            esQuery.body.size = indexConfig.maxLayerInfoResults;
+        }
 
         // check for join shapes
         let useJoinShapes = !!indexConfig.shapeIndex;
