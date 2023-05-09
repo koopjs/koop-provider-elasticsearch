@@ -38,14 +38,22 @@ class GeoLineAggregation {
 
     updateQuery(query) {
         let size = this.indexConfig.maxResults;
-        if(undefined === query.body.query.bool.filter){
+        let hasGeoBoundingBox = false;
+        query.body.query.bool.filter?.forEach(filter => {
+            if(filter.geo_bounding_box) hasGeoBoundingBox = true;
+        });
+
+        if(!hasGeoBoundingBox){
             if(this.indexConfig.maxLayerInfoResults){
                 size = this.indexConfig.maxLayerInfoResults;
             }
             if(this.aggConfig.options.defaultExtent){
-                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+                if(!query.body.query.bool.filter) query.body.query.bool.filter = [];
+                query.body.query.bool.filter = [...query.body.query.bool.filter, this.aggConfig.options.defaultExtent];
             }
         }
+
+
         let aggs = {};
         aggs.agg = {
             terms: {field: this.aggConfig.options.termField, size}
@@ -152,9 +160,5 @@ class GeoLineAggregation {
         return properties;
     }
 }
-
-
-
-
 
 module.exports = {NAME, GeoLineAggregation};
