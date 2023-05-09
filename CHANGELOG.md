@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+* Filter updating for Geo Bounding Box filters
+* Correctly update size and default bounding box based on existing filters
+* Support for connection username and password coming from environment variable
+
 ## [3.6.0] - 04-26-2023 
 ### Added
 * Caching support. If a layer is marked for caching then the main layer and all sublayers will use a cached version of the data when available.
