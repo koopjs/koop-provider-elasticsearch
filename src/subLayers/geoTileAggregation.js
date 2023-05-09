@@ -64,12 +64,18 @@ class GeoTileAggregation {
 
     updateQuery(query, aggField, precision=0) {
         let size = this.indexConfig.maxResults;
-        if(undefined === query.body.query.bool.filter){
+        let hasGeoBoundingBox = false;
+        query.body.query.bool.filter?.forEach(filter => {
+            if(filter.geo_bounding_box) hasGeoBoundingBox = true;
+        });
+
+        if(!hasGeoBoundingBox){
             if(this.indexConfig.maxLayerInfoResults){
                 size = this.indexConfig.maxLayerInfoResults;
             }
             if(this.aggConfig.options.defaultExtent){
-                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+                if(!query.body.query.bool.filter) query.body.query.bool.filter = [];
+                query.body.query.bool.filter = [...query.body.query.bool.filter, this.aggConfig.options.defaultExtent];
             }
         }
 

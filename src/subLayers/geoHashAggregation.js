@@ -60,12 +60,18 @@ class GeoHashAggregation {
 
     updateQuery(query, aggField, precision=0) {
         let size = this.indexConfig.maxResults;
-        if(undefined === query.body.query.bool.filter){
+        let hasGeoBoundingBox = false;
+        query.body.query.bool.filter?.forEach(filter => {
+            if(filter.geo_bounding_box) hasGeoBoundingBox = true;
+        });
+
+        if(!hasGeoBoundingBox){
             if(this.indexConfig.maxLayerInfoResults){
                 size = this.indexConfig.maxLayerInfoResults;
             }
             if(this.aggConfig.options.defaultExtent){
-                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+                if(!query.body.query.bool.filter) query.body.query.bool.filter = [];
+                query.body.query.bool.filter = [...query.body.query.bool.filter, this.aggConfig.options.defaultExtent];
             }
         }
 
@@ -78,14 +84,17 @@ class GeoHashAggregation {
             bottomRight[0] = Math.min(180.0, bottomRight[0]);
             bottomRight[1] = Math.max(-90.0, bottomRight[1]);
             topLeft[1] = Math.min(90.0, topLeft[1]);
-            if(query.body.query.bool.filter[0].geo_bounding_box){
-                query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField] = {
-                    top_left: topLeft,
-                    bottom_right: bottomRight
-                };
-            } else if(query.body.query.bool.filter[0].geo_shape){
-                query.body.query.bool.filter[0].geo_shape.shape.coordinates = [topLeft, bottomRight];
-            }
+            query.body.query.bool.filter.forEach((filter, i) => {
+                if(filter.geo_bounding_box){
+                    query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField] = {
+                        top_left: topLeft,
+                        bottom_right: bottomRight
+                    };
+                } else if(filter.geo_shape){
+                    query.body.query.bool.filter[i].geo_shape.shape.coordinates = [topLeft, bottomRight];
+                }
+            });
+
         }
         // add geohash aggregation.
         query.body.aggregations = {

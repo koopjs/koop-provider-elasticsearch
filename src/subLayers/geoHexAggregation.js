@@ -64,20 +64,31 @@ class GeoHexAggregation {
 
     updateQuery(query, aggField, precision=0) {
         let size = this.indexConfig.maxResults;
-        if(undefined === query.body.query.bool.filter){
+        let hasGeoBoundingBox = false;
+        query.body.query.bool.filter?.forEach(filter => {
+            if(filter.geo_bounding_box) hasGeoBoundingBox = true;
+        });
+
+        if(!hasGeoBoundingBox){
             if(this.indexConfig.maxLayerInfoResults){
                 size = this.indexConfig.maxLayerInfoResults;
             }
             if(this.aggConfig.options.defaultExtent){
-                query.body.query.bool.filter = [this.aggConfig.options.defaultExtent];
+                if(!query.body.query.bool.filter) query.body.query.bool.filter = [];
+                query.body.query.bool.filter = [...query.body.query.bool.filter, this.aggConfig.options.defaultExtent];
             }
         }
 
         let bounds = undefined;
-        if(query.body?.query?.bool?.filter){
-            bounds = query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField];
-            query.body.query.bool.filter[0].geo_bounding_box[this.indexConfig.geometryField] = this._expandFilterBoundingBox(bounds, precision);
+        if(query.body.query.bool.filter){
+            query.body.query.bool.filter.forEach((filter, i) => {
+                if(filter.geo_bounding_box){
+                    bounds = query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField];
+                    query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField] = this._expandFilterBoundingBox(bounds, precision)
+                }
+            });
         }
+
         let aggs = {
             agg: {
                 geohex_grid: {field: aggField, precision, size, bounds},
