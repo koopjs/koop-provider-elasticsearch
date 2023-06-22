@@ -24,7 +24,7 @@
     "moment": "2.20.1",
     "ngeohash": "^0.6.3",
     "polygon-splitter": "0.0.8",
-    "proj4": "2.4.4",
+    "proj4": "2.9.0",
     "sqlite-parser": "1.0.1"
   },
   "repository": {
