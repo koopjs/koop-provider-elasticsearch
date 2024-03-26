@@ -218,6 +218,31 @@ precision is between 0-29 for geotile.
 }
 ```
 
+### BETA - OpenSearch Support
+Support for connections to Amazon OpenSearch clusters has been added. This functionality is new and had not been
+thoroughly tested. Please log any issues encountered when using/testing.
+
+#### OpenSearch Configuration
+The OpenSearch configurations follow the same pattern as elasticsearch connections and can even be included in the same
+configuration file. Create an `osConnections` object sibling to the `esConnections` object within the configuration
+file. From there the configuration is the same as with elasticsearch connections except for cluster connection
+information.  All OpenSearch connection information is stored within a `connectConfig` object. An example is given below.
+
+```json
+{
+  "osConnections": {
+    "osCluster1": {
+      "id": "osCluster1",
+      "connectConfig": {
+        "node": "http://localhost:9200"
+      },
+      "indices": {
+        // same as with elastic configuration
+      }
+    }
+  }
+}
+```
 
 #### Additional Index Configurations
 `mapReturnValues` is an object that can contain keys that are field names that in turn have their own keys equal to field 
