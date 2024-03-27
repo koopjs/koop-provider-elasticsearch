@@ -53,6 +53,7 @@ function initializeESClients() {
     return esClients;
 }
 
+
 function checkForEnvironmentVariables(){
     try {
         let koopEnvKeys = process.env.KOOP_ENV_KEYS?.split("||");
