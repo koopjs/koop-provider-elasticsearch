@@ -12,6 +12,7 @@ const logger = new Logger(config);
 const moment = require('moment');
 const rewind = require('@mapbox/geojson-rewind');
 const ElasticConnectUtil = require('./utils/elasticConnectUtil');
+const OpensearchConnectUtil = require('./utils/opensearchConnectUtil');
 const {GeoTileAggregation} = require('./subLayers/geoTileAggregation');
 const {GeoHashAggregation} = require('./subLayers/geoHashAggregation');
 const {GeoHexAggregation} = require('./subLayers/geoHexAggregation');
@@ -37,18 +38,23 @@ module.exports = function (koop) {
 
     this.getData = async function (req, callback) {
         // let startMillis = Date.now().valueOf();
-        if (!this.esClients) {
-            this.esClients = ElasticConnectUtil.initializeESClients();
+        if (!this.searchClients) {
+            let esClients = ElasticConnectUtil.initializeESClients();
+            let osClients = OpensearchConnectUtil.initializeOSClients();
+            this.searchClients = {...esClients, ...osClients};
             this.esConfig = null;
-            this.indexInfo = new IndexInfo(this.esClients);
+            this.indexInfo = new IndexInfo(this.searchClients);
         }
         const esId = req.params.host;
-        this.client = this.esClients[esId].child();
+        this.client = this.searchClients[esId].child();
 
         const serviceName = req.params.id;
 
         let layerId = req.params.layer;
         this.esConfig = config.esConnections[esId];
+        if(!this.esConfig){
+            this.esConfig = config.osConnections[esId];
+        }
         const indexConfig = this.esConfig.indices[serviceName];
         indexConfig.returnFields = req.query.returnFields || indexConfig.returnFields;
         let extent = indexConfig.extent;
@@ -245,10 +251,10 @@ module.exports = function (koop) {
             this.client.count(countQuery).then(function (resp) {
                 logger.debug("count resp:", resp);
                 featureCollection.count = resp.body.count;
-                callback(null, featureCollection);
+                return featureCollection;
             }, function (err) {
                 logger.error(err.message);
-                callback(err, featureCollection);
+                return featureCollection;
             });
             return;
         }

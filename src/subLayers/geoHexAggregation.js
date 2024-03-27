@@ -84,7 +84,8 @@ class GeoHexAggregation {
             query.body.query.bool.filter.forEach((filter, i) => {
                 if(filter.geo_bounding_box){
                     bounds = query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField];
-                    query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField] = this._expandFilterBoundingBox(bounds, precision)
+                    bounds = this._expandFilterBoundingBox(bounds, precision);
+                    query.body.query.bool.filter[i].geo_bounding_box[this.indexConfig.geometryField] = bounds
                 }
             });
         }
@@ -139,6 +140,9 @@ class GeoHexAggregation {
                 type: 'Feature',
                 properties: {}
             };
+            if(this.aggConfig.options.requiredFields){
+                feature.properties = {...this.aggConfig.options.requiredFields};
+            }
             let bucketKeys = Object.keys(bucket);
             for (let j = 0; j < bucketKeys.length; j++) {
                 let key = bucketKeys[j];
@@ -157,7 +161,21 @@ class GeoHexAggregation {
                 } else if (key === 'doc_count') {
                     feature.properties.count = bucket[key];
                 } else {
-                    feature.properties[key] = bucket[key].value;
+                    if(bucket[key].hasOwnProperty('value')){
+                        feature.properties[key] = bucket[key].value;
+                    } else {
+                        // series of buckets, turn each into a field
+                        let topKey = undefined;
+                        let topVal = 0;
+                        bucket[key].buckets.forEach(subBucket => {
+                            feature.properties[`${key}_${subBucket.key}`] = subBucket.doc_count;
+                            if(subBucket.doc_count > topVal){
+                                topKey = subBucket.key;
+                                topVal = subBucket.doc_count;
+                            }
+                        });
+                        if(topKey && this.aggConfig.options.displayTopSubAggregations) feature.properties[`top_${key}`] = topKey;
+                    }
                 }
             }
             featureCollection.features.push(feature);
@@ -188,7 +206,7 @@ class GeoHexAggregation {
             xmin = Math.min(xmin, point[0]);
             xmax = Math.max(xmax, point[0]);
         });
-        if(xmin < 0 && xmax > 0){
+        if(xmin < 0 && xmax > 0 && (xmax - xmin > 180)){
             // shift all points up 180
             const coordinates = [polygon.coordinates[0].map(point => [point[0] > 0 ? point[0] - 180  : point[0] + 180, point [1]])];
             // split at 0

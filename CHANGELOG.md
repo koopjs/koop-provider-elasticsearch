@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Added
+* Support for OpenSearch indexes
+
 ## [3.6.1] - 05-09-2023
 ### Fixed
 * Filter updating for Geo Bounding Box filters
