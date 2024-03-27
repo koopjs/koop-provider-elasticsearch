@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.7.0] - 03-27-2024
+### Added
+* Support for OpenSearch indexes
+
 ## [3.6.1] - 05-09-2023
 ### Fixed
 * Filter updating for Geo Bounding Box filters
@@ -145,6 +149,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.7.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.6.1...v3.7.0
 [3.6.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.6.0...v3.6.1
 [3.6.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.5.1...v3.6.0
 [3.5.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.5.0...v3.5.1
