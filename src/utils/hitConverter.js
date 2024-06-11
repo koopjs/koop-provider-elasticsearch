@@ -5,6 +5,7 @@ const logger = new Logger(config);
 const geohash = require('ngeohash');
 const flatten = require('flat');
 const unflatten = require('flat').unflatten;
+const Terraformer = require('@terraformer/wkt');
 
 class HitConverter{
 
@@ -100,9 +101,9 @@ class HitConverter{
             if(feature.geometry.type === "polygon") {
                 // Koop expects a capital P and ES has lowercase
                 feature.geometry.type = "Polygon";
-            } else if(feature.geometry.type === "multipolygon"){
+            } else if(feature.geometry.type === "multipolygon") {
                 feature.geometry.type = "Multipolygon";
-            } else if (undefined === feature.geometry.type){
+            }  else if (undefined === feature.geometry.type){
                 // point
                 var coords = undefined;
 
@@ -132,6 +133,15 @@ class HitConverter{
                         } else {
                             coords = feature.geometry;
                         }
+                    }
+                } else if(typeof feature.geometry === 'string'){
+                    // could be WKT
+                    try {
+                        feature.geometry = Terraformer.wktToGeoJSON(feature.geometry);
+                        pointType = feature.geometry.type;
+                        coords = feature.geometry.coordinates;
+                    } catch (e) {
+                        logger.warn(e.message);
                     }
                 } else {
                     pointType = "Point";

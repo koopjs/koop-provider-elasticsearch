@@ -9,7 +9,7 @@
     "test": "standard && tape test/*.js | tap-spec"
   },
   "keywords": [
-    "koop"
+    "koop", "elasticsearch"
   ],
   "author": "Danny Hatcher",
   "license": "Apache-2.0",
@@ -22,11 +22,12 @@
     "@mapbox/tilebelt": "^1.0.2",
     "flat": "^5.0.0",
     "h3-js": "^3.7.2",
-    "moment": "2.20.1",
+    "moment": "2.29.4",
     "ngeohash": "^0.6.3",
     "polygon-splitter": "0.0.8",
     "proj4": "2.4.4",
-    "sqlite-parser": "1.0.1"
+    "sqlite-parser": "1.0.1",
+    "@terraformer/wkt": "^2.2.1"
   },
   "repository": {
     "type": "git",
