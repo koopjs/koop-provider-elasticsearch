@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [3.7.1] - 06-11-2024
 ### Fixed
 * Geometries stored as WKT will now work correctly
 
@@ -153,6 +153,7 @@ capability they wish.
 ### Changed
 * Updated to follow the standard Koop Framework. The wrapper project will be maintained elsewhere.
 
+[3.7.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.7.0...v3.7.1
 [3.7.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.6.1...v3.7.0
 [3.6.1]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.6.0...v3.6.1
 [3.6.0]: https://github.com/koopjs/koop-provider-elasticsearch/compare/v3.5.1...v3.6.0
