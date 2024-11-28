@@ -35,6 +35,6 @@
   },
   "devDependencies": {
     "@koopjs/cli": "^1.1.7",
-    "gh-release": "^6.0.0"
+    "gh-release": "^7.0.0"
   }
 }
