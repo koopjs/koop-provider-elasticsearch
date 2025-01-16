@@ -30,13 +30,15 @@ function initializeESClients() {
         if(envConfig[esId]){
             connectInfo.userName = envConfig[esId].user;
             connectInfo.password = envConfig[esId].password;
+            connectInfo.apiKey = envConfig[esId].apiKey;
         }
 
         let esClient = new Client({
             node: hosts,
             auth: {
                 username: connectInfo.userName,
-                password: connectInfo.password
+                password: connectInfo.password,
+                apiKey: connectInfo.apiKey
             },
             requestTimeout: 900000,
             keepAlive: false,
@@ -61,10 +63,14 @@ function checkForEnvironmentVariables(){
         if(koopEnvKeys){
             koopEnvKeys.forEach(envConf => {
                 let envInfo = envConf.split(',');
-                koopEnvConfig[envInfo[0]] = {user: envInfo[1], password: envInfo[2]};
+                koopEnvConfig[envInfo[0]] = {
+                    user: envInfo[1],
+                    password: envInfo[2],
+                    apiKey: envInfo[3]
+                };
             });
         }
-        // console.dir(koopEnvConfig);// esId,user,password||esId,user,password
+        // console.dir(koopEnvConfig);// esId,user,password,apiKey||esId,user,password,apiKey
         return koopEnvConfig;
     } catch (e) {
         console.error(e);

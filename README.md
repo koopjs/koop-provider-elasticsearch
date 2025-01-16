@@ -20,10 +20,10 @@ The latest version of this provider can be installed with the Koop CLI.  See the
 To suppress KoopJS warnings from the console output, run with an environment variable of KOOP_WARNINGS="suppress". In powershell, this will look like: $env:KOOP_WARNINGS="suppress" ; node main.js
 
 ## Elastic Search Connect Environment Variable
-Setting an environment variable of `KOOP_ENV_KEYS` allows saving of usernames and passwords to connect to elastic search 
+Setting an environment variable of `KOOP_ENV_KEYS` allows saving of credentials to connect to elastic search 
 without having to store them in the configuration file.  The format for this variable is 
-`esId,user,password||esId2,user2,password2`. The _esId_ is the id given to the connection in the configuration file as
-shown below in the *Basic Config File Structure* section.
+`esId,user,password,apiKey||esId2,user2,password2||esId3,,,apiKey3`. The _esId_ is the id given to the connection in the configuration file as
+shown below in the *Basic Config File Structure* section.  The _apiKey_ should be base64 encoded.
 
 ## Command Line
 `npm start`
