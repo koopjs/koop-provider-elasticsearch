@@ -248,15 +248,14 @@ module.exports = function (koop) {
                 mapping,
                 customIndexNameBuilder: this.customIndexNameBuilder
             });
-            this.client.count(countQuery).then(function (resp) {
+            try {
+                const resp = await this.client.count(countQuery);
                 logger.debug("count resp:", resp);
                 featureCollection.count = resp.body.count;
-                return featureCollection;
-            }, function (err) {
+            } catch (err) {
                 logger.error(err.message);
-                return featureCollection;
-            });
-            return;
+            }
+            return featureCollection;
         }
 
         let esQuery = buildESQuery(indexConfig, query, {
