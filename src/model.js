@@ -56,7 +56,27 @@ module.exports = function (koop) {
             this.esConfig = config.osConnections[esId];
         }
         const indexConfig = this.esConfig.indices[serviceName];
-        indexConfig.returnFields = req.query.returnFields || indexConfig.returnFields;
+
+        let query = req.query;
+        if (req.method === "POST") {    // for POST, take the query parameters from the body
+            // look for malformed where
+            if (req.body.where === "undefined") {
+                delete req.body.where;
+            }
+
+            if (!query) {
+                query = {};
+            }
+            query = { ...query, ...req.body};
+
+            // extract int/boolean fields sent as application/x-www-form-urlencoded strings
+            let { returnCountOnly, limit, resultOffset, resultRecordCount, inSR } = query;
+            ({ returnCountOnly } = sanitizeBools({ returnCountOnly }));
+            ({ limit, resultOffset, resultRecordCount, inSR } = sanitizeInts({ limit, resultOffset, resultRecordCount, inSR }));
+            query = { ...query, returnCountOnly, limit, resultOffset, resultRecordCount };
+        }
+
+        indexConfig.returnFields = query.returnFields || indexConfig.returnFields;
         let extent = indexConfig.extent;
         let customSymbolizer = this.getCustomSymbolizer(indexConfig);
 
@@ -75,18 +95,18 @@ module.exports = function (koop) {
 
         if (req.url.includes('VectorTileServer')) {
             layerId = indexConfig.vectorLayerID ? indexConfig.vectorLayerID.toString() : "0";
-            req.query.inSR = 102100;
+            query.inSR = 102100;
             if (req.params.x && req.params.y && req.params.z) {
                 const tileBBox = getTileBBox(req, customSymbolizer);
-                req.query.geometry = tileBBox;
-                req.query.maxAllowableOffset = this.getTileOffset(req.params.z, indexConfig.vectorLayerMinimumOffset);
+                query.geometry = tileBBox;
+                query.maxAllowableOffset = this.getTileOffset(req.params.z, indexConfig.vectorLayerMinimumOffset);
                 //TODO: Investigate using the bbox extent (must be in web mercator)
                 extent = undefined;
             }
         } else {
             extent = undefined;
-            if (req.query.geometry) {
-                req.query.geometry = normalizeGeometry(req.query.geometry, req.query.inSR);
+            if (query.geometry) {
+                query.geometry = normalizeGeometry(query.geometry, query.inSR);
             }
         }
         if (!indexConfig) {
@@ -155,8 +175,6 @@ module.exports = function (koop) {
             featureCollection.metadata.idField = indexConfig.idField;
         }
 
-        let query = req.query;
-
         // validate bounds here
         if (query.geometry && !query.distance && !validateBounds(query.geometry)) {
             callback(null, featureCollection);
@@ -216,7 +234,7 @@ module.exports = function (koop) {
                     });
                     featureCollection = customSubLayer.getFeatures({
                         indexConfig, mapping, query: esQuery, esClient: this.client, featureCollection,
-                        queryParameters: req.query
+                        queryParameters: query
                     }).then(subLayerFeatureCollection => {
                         // logger.debug(`Total Time: ${(Date.now().valueOf() - startMillis)/1000} seconds`);
                         callback(null, subLayerFeatureCollection);
@@ -384,6 +402,29 @@ module.exports = function (koop) {
         }
 
         return featureCollection;
+    }
+
+    function sanitizeBools(args) {
+        for (let arg in args) {
+            if (typeof args[arg] === 'string') {
+                args[arg] = (args[arg] === 'true');
+            }
+        }
+
+        return args;
+    }
+
+    function sanitizeInts(args) {
+        for (let arg in args) {
+            if (typeof args[arg] === 'string') {
+                const val = Number.parseInt(args[arg]);
+                if (!Number.isNaN(val)) {
+                    args[arg] = val;
+                }
+            }
+        }
+
+        return args;
     }
 
     this.registerCustomIndexNameBuilder = function (indexer) {
