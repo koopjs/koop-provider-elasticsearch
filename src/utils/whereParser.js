@@ -326,7 +326,7 @@ class WhereParser {
         let shouldArray = [];
         let mustArray = [];
         let mustNotArray = [];
-        whereClause = whereClause.replace(/timestamp '/g, " '");
+        whereClause = whereClause.replace(/timestamp '/gi, " '");
         whereClause = whereClause.replace('UPPER', '');
         let ast = sqliteParser("SELECT * FROM BLAH WHERE " + whereClause);
         let whereItem = ast.statement[0].where[0];
